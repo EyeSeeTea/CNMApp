@@ -19,6 +19,7 @@
 
 package org.eyeseetea.malariacare.layout.adapters.survey;
 
+import static org.eyeseetea.malariacare.R.id.masked;
 import static org.eyeseetea.malariacare.R.id.question;
 import static org.eyeseetea.malariacare.data.database.model.OptionDB.DOESNT_MATCH_POSITION;
 import static org.eyeseetea.malariacare.data.database.model.OptionDB.MATCH_POSITION;
@@ -27,6 +28,7 @@ import static org.eyeseetea.malariacare.data.database.utils.Session.getMalariaSu
 import android.app.AlertDialog;
 import android.content.Context;
 import android.content.DialogInterface;
+import android.graphics.Color;
 import android.graphics.Typeface;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -80,6 +82,7 @@ import org.eyeseetea.malariacare.views.question.IMultiQuestionView;
 import org.eyeseetea.malariacare.views.question.INavigationQuestionView;
 import org.eyeseetea.malariacare.views.question.IQuestionView;
 import org.eyeseetea.malariacare.views.question.multiquestion.DatePickerQuestionView;
+import org.eyeseetea.malariacare.views.question.multiquestion.DropdownMultiQuestionView;
 import org.eyeseetea.malariacare.views.question.multiquestion.YearSelectorQuestionView;
 import org.eyeseetea.malariacare.views.question.singlequestion.ImageRadioButtonSingleQuestionView;
 import org.eyeseetea.malariacare.views.question.singlequestion.strategies
@@ -226,6 +229,9 @@ public class DynamicTabAdapter extends BaseAdapter implements ITabAdapter {
                 else if (navigationController.isNextAllowed()) {
                     hideKeyboard(listView.getContext(), listView);
                     next();
+                } else if (navigationController.isLastQuestionWithValue()) {
+                    hideKeyboard(listView.getContext(), listView);
+                    finishOrNext();
                 }
             }
 
@@ -601,7 +607,13 @@ public class DynamicTabAdapter extends BaseAdapter implements ITabAdapter {
 
             if (questionView instanceof AOptionQuestionView) {
                 ((AOptionQuestionView) questionView).setQuestionDB(screenQuestionDB);
-                List<OptionDB> optionDBs = screenQuestionDB.getAnswerDB().getOptionDBs();
+
+                List<OptionDB> optionDBs = null;
+                if (questionView instanceof DropdownMultiQuestionView) {
+                    optionDBs = screenQuestionDB.getAnswerDB().getOptionDBsOrderByName();
+                } else {
+                    optionDBs = screenQuestionDB.getAnswerDB().getOptionDBs();
+                }
                 ((AOptionQuestionView) questionView).setOptions(
                         optionDBs);
             }
@@ -621,7 +633,18 @@ public class DynamicTabAdapter extends BaseAdapter implements ITabAdapter {
             setupNavigationByQuestionView(rowView.getRootView(), questionView);
 
             tableRow.addView((View) questionView);
+            List<OptionDB> optionDBList = screenQuestionDB.getAnswerDB().getOptionDBs();
 
+            if(mMultiQuestionViews.size()>0 && optionDBList!=null && optionDBList.size()>0) {
+                OptionDB optionDB = optionDBList.get(optionDBList.size()-1);
+                if(optionDB!=null) {
+                    String color = optionDB.getBackground_colour();
+                    if(color!=null && !color.equals("")) {
+                        color = "#" + color;
+                        rowView.setBackgroundColor(Color.parseColor(color));
+                    }
+                }
+            }
             swipeTouchListener.addTouchableView(rowView);
             swipeTouchListener.addTouchableView(tableRow);
             swipeTouchListener.addTouchableView((View) questionView);

@@ -3,10 +3,9 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:orientation="vertical"
     android:layout_width="match_parent"
-    android:layout_height="600dp"
+    android:layout_height="wrap_content"
     android:paddingLeft="10dp"
-    android:paddingRight="10dp"
-    android:background="@color/yellow">
+    android:paddingRight="10dp">
 
     <org.eyeseetea.sdk.presentation.views.CustomTextView
         android:id="@+id/row_header_text"
@@ -24,7 +23,7 @@
         app:font_name="@string/normal_font" />
 
 
-    <Spinner
+    <org.eyeseetea.sdk.presentation.views.CustomSpinner
         android:id="@+id/spinner_province"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -39,7 +38,7 @@
         android:paddingTop="2dip"
         android:textColor="@color/black" />
 
-    <Spinner
+    <org.eyeseetea.sdk.presentation.views.CustomSpinner
         android:id="@+id/spinner_district"
         android:layout_width="match_parent"
         android:layout_marginTop="10dp"
@@ -54,7 +53,7 @@
         android:background="@drawable/spinner_background"
         android:textColor="@color/black" />
 
-    <Spinner
+    <org.eyeseetea.sdk.presentation.views.CustomSpinner
         android:id="@+id/spinner_commune"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -69,7 +68,7 @@
         android:background="@drawable/spinner_background"
         android:textColor="@color/black" />
 
-    <Spinner
+    <org.eyeseetea.sdk.presentation.views.CustomSpinner
         android:id="@+id/spinner_village"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"

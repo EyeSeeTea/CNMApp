@@ -13,15 +13,17 @@ import org.eyeseetea.malariacare.layout.adapters.general.OptionArrayAdapter;
 import org.eyeseetea.malariacare.views.question.AOptionQuestionView;
 import org.eyeseetea.malariacare.views.question.IMultiQuestionView;
 import org.eyeseetea.malariacare.views.question.IQuestionView;
+import org.eyeseetea.sdk.presentation.views.CustomSpinner;
 import org.eyeseetea.sdk.presentation.views.CustomTextView;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 public class OuTreeMultiQuestionView extends AOptionQuestionView implements IQuestionView,
         IMultiQuestionView {
     private CustomTextView header;
-    private Spinner spinnerProvince, spinnerDistrict, spinnerCommune, spinnerVillage;
+    private CustomSpinner spinnerProvince, spinnerDistrict, spinnerCommune, spinnerVillage;
     private QuestionDB mQuestionDB;
     private boolean optionSetFromSavedValue = false;
     private List<OptionDB> mOptionDBs;
@@ -36,10 +38,10 @@ public class OuTreeMultiQuestionView extends AOptionQuestionView implements IQue
     private void init(Context context) {
         inflate(context, R.layout.multi_question_dropdown_tree, this);
         header = (CustomTextView) findViewById(R.id.row_header_text);
-        spinnerProvince = (Spinner) findViewById(R.id.spinner_province);
-        spinnerDistrict = (Spinner) findViewById(R.id.spinner_district);
-        spinnerCommune = (Spinner) findViewById(R.id.spinner_commune);
-        spinnerVillage = (Spinner) findViewById(R.id.spinner_village);
+        spinnerProvince = (CustomSpinner) findViewById(R.id.spinner_province);
+        spinnerDistrict = (CustomSpinner) findViewById(R.id.spinner_district);
+        spinnerCommune = (CustomSpinner) findViewById(R.id.spinner_commune);
+        spinnerVillage = (CustomSpinner) findViewById(R.id.spinner_village);
         mContext = context;
 
         setSpinnerOnItemSelectedListener(spinnerProvince, spinnerDistrict,
@@ -53,11 +55,10 @@ public class OuTreeMultiQuestionView extends AOptionQuestionView implements IQue
             @Override
             public void onItemSelected(AdapterView<?> adapterView, View view, int position,
                     long l) {
-                if (!optionSetFromSavedValue) {
-                    if (position > 0) {
+
+                if (position > 0) {
                         OptionDB optionDB = (OptionDB) adapterView.getItemAtPosition(position);
                         notifyAnswerChanged(optionDB);
-                    }
                 }
             }
 
@@ -93,26 +94,37 @@ public class OuTreeMultiQuestionView extends AOptionQuestionView implements IQue
             return;
         }
         OptionDB villageOption = valueDB.getOptionDB();
-        OptionDB communeOption = OptionDB.findById(villageOption.getId_parent_fk());
-        OptionDB districtOption = OptionDB.findById(communeOption.getId_parent_fk());
-        OptionDB provinceOption = OptionDB.findById(districtOption.getId_parent_fk());
-        setValueToSpinner(spinnerProvince, provinceOption);
-        setOptionsWithParent(spinnerDistrict, provinceOption.getId_option(),
-                mContext.getString(R.string.district));
-        setValueToSpinner(spinnerDistrict, districtOption);
-        setOptionsWithParent(spinnerCommune, districtOption.getId_option(),
-                mContext.getString(R.string.commune));
+        if(villageOption!=null) {
+            OptionDB communeOption = OptionDB.findById(villageOption.getId_parent_fk());
+            if(communeOption!=null) {
+                OptionDB districtOption = OptionDB.findById(communeOption.getId_parent_fk());
+                if(districtOption!=null) {
+                    OptionDB provinceOption = OptionDB.findById(districtOption.getId_parent_fk());
+                    if(provinceOption!=null) {
+                        setValueToSpinner(spinnerProvince, provinceOption);
+                        setOptionsWithParent(spinnerDistrict, provinceOption.getId_option(),
+                                mContext.getString(R.string.district));
+                    }
+                }
+                setValueToSpinner(spinnerDistrict, districtOption);
+                setOptionsWithParent(spinnerCommune, districtOption.getId_option(),
+                        mContext.getString(R.string.commune));
+            }
         setValueToSpinner(spinnerCommune, communeOption);
         setOptionsWithParent(spinnerVillage, communeOption.getId_option(),
                 mContext.getString(R.string.village));
+        }
         setValueToSpinner(spinnerVillage, villageOption);
     }
 
-    private void setValueToSpinner(Spinner spinner, OptionDB optionSelected) {
+    private void setValueToSpinner(CustomSpinner spinner, OptionDB optionSelected) {
+        if(spinner.getAdapter()==null){
+            return;
+        }
         for (int i = 0; i < spinner.getAdapter().getCount(); i++) {
             OptionDB optionDB = (OptionDB) spinner.getItemAtPosition(i);
             if (optionDB.equals(optionSelected)) {
-                spinner.setSelection(i);
+                spinner.setSelection(i, false, true);
                 break;
             }
         }
@@ -139,15 +151,19 @@ public class OuTreeMultiQuestionView extends AOptionQuestionView implements IQue
     }
 
     private List<OptionDB> getOptionsWithParent(Long parent, List<OptionDB> optionsFrom) {
-        List<OptionDB> optionsWithParent = new ArrayList<>();
-        for (OptionDB optionDB : optionsFrom) {
-            if ((parent == null && optionDB.getId_parent_fk() == null)
-                    || (optionDB.getId_parent_fk() != null && optionDB.getId_parent_fk().equals(
-                    parent))) {
-                optionsWithParent.add(optionDB);
+        if (parent == null) {
+            List<OptionDB> optionsWithParent = new ArrayList<>();
+            for (OptionDB optionDB : optionsFrom) {
+                if ((parent == null && optionDB.getId_parent_fk() == null)
+                        || (optionDB.getId_parent_fk() != null && optionDB.getId_parent_fk().equals(
+                        parent))) {
+                    optionsWithParent.add(optionDB);
+                }
             }
+            Collections.sort(optionsWithParent, new OptionDB.OptionComparator());
+            return optionsWithParent;
         }
-        return optionsWithParent;
+        return OptionDB.getOptionsWithParentAndQuestion(parent, mQuestionDB);
     }
 
     private void setOptionsWithParent(Spinner spinner, Long parent, String hintText) {
@@ -163,10 +179,8 @@ public class OuTreeMultiQuestionView extends AOptionQuestionView implements IQue
             @Override
             public void onItemSelected(AdapterView<?> adapterView, View view, int position,
                     long l) {
-                if (!optionSetFromSavedValue) {
                     OptionDB optionDB = (OptionDB) adapterView.getItemAtPosition(position);
                     setOptionsWithParent(child, optionDB.getId_option(), defaultText);
-                }
             }
 
             @Override
