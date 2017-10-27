@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TableRow xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:layout_weight="1">
+
+    <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:scaleType="centerInside">
+
+        <ImageView
+            android:id="@+id/option1"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_gravity="center"
+            android:layout_weight="1"
+            android:adjustViewBounds="true"
+            android:scaleType="fitCenter" />
+
+        <org.eyeseetea.sdk.presentation.views.CustomTextView
+            android:id="@+id/textoption1"
+            android:layout_width="fill_parent"
+            android:layout_height="match_parent"
+            android:layout_gravity="center"
+            android:gravity="center"
+            android:padding="5dip"
+            android:text=""
+            android:textColor="@color/white"
+            android:textSize="?attr/font_medium"
+            app:font_name="@string/normal_font" />
+
+        <org.eyeseetea.sdk.presentation.views.CustomTextView
+            android:id="@+id/counter1"
+            android:layout_width="fill_parent"
+            android:layout_height="match_parent"
+            android:layout_gravity="center"
+            android:gravity="bottom"
+            android:padding="5dip"
+            android:textColor="@color/black"
+            android:textSize="?attr/font_small"
+            android:visibility="gone"
+            app:font_name="@string/normal_font" />
+    </FrameLayout>
+</TableRow>

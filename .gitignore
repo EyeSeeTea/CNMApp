@@ -1,8 +1,14 @@
+# iml files (idea)
+*.iml
+
+#Idea custom configuration
+.idea/
+
 # Built application files
 *.apk
 *.ap_
 
-# Files for the ART/Dalvik VM
+# Files for the Dalvik VM
 *.dex
 
 # Java class files
@@ -11,7 +17,6 @@
 # Generated files
 bin/
 gen/
-out/
 
 # Gradle files
 .gradle/
@@ -26,30 +31,16 @@ proguard/
 # Log Files
 *.log
 
-# Android Studio Navigation editor temp files
-.navigation/
+/.idea/workspace.xml
+/.idea/libraries
+.DS_Store
 
-# Android Studio captures folder
-captures/
+# Last commit file
+app/src/main/res/raw/lastcommit.txt
 
-# Intellij
-*.iml
-.idea/workspace.xml
-.idea/tasks.xml
-.idea/gradle.xml
-.idea/dictionaries
-.idea/libraries
+# Config
+app/src/*/res/raw/config.json
 
-# Keystore files
-*.jks
 
-# External native build folder generated in Android Studio 2.2 and later
-.externalNativeBuild
-
-# Google Services (e.g. APIs or Firebase)
-google-services.json
-
-# Freeline
-freeline.py
-freeline/
-freeline_project_description.json
+# local only private key for drive service account credentials
+app/src/main/res/raw/driveserviceprivatekey.json
