@@ -19,7 +19,6 @@
 
 package org.eyeseetea.malariacare.layout.adapters.survey;
 
-import static org.eyeseetea.malariacare.R.id.masked;
 import static org.eyeseetea.malariacare.R.id.question;
 import static org.eyeseetea.malariacare.data.database.model.OptionDB.DOESNT_MATCH_POSITION;
 import static org.eyeseetea.malariacare.data.database.model.OptionDB.MATCH_POSITION;
@@ -53,6 +52,7 @@ import org.eyeseetea.malariacare.data.database.model.OptionDB;
 import org.eyeseetea.malariacare.data.database.model.QuestionDB;
 import org.eyeseetea.malariacare.data.database.model.QuestionOptionDB;
 import org.eyeseetea.malariacare.data.database.model.QuestionRelationDB;
+import org.eyeseetea.malariacare.data.database.model.QuestionThresholdDB;
 import org.eyeseetea.malariacare.data.database.model.SurveyDB;
 import org.eyeseetea.malariacare.data.database.model.TabDB;
 import org.eyeseetea.malariacare.data.database.model.ValueDB;
@@ -614,8 +614,10 @@ public class DynamicTabAdapter extends BaseAdapter implements ITabAdapter {
                 } else {
                     optionDBs = screenQuestionDB.getAnswerDB().getOptionDBs();
                 }
+                List<OptionDB> optionsToShow = new ArrayList<>(optionDBs);
+                valueDB = hideOptionsByMatch(screenQuestionDB, optionsToShow, valueDB);
                 ((AOptionQuestionView) questionView).setOptions(
-                        optionDBs);
+                        optionsToShow);
             }
             mDynamicTabAdapterStrategy.instanceOfSingleQuestion(questionView, screenQuestionDB);
 
@@ -652,6 +654,59 @@ public class DynamicTabAdapter extends BaseAdapter implements ITabAdapter {
 
             setVisibilityAndAddRow(tableRow, screenQuestionDB, visibility);
         }
+    }
+
+    private ValueDB hideOptionsByMatch(QuestionDB screenQuestionDB,
+            List<OptionDB> optionDBs, ValueDB valueDB) {
+        boolean isQuestionHideOption = false;
+        for (QuestionRelationDB questionRelationDB : screenQuestionDB.getQuestionRelationDBs()) {
+            if (questionRelationDB.getOperation()
+                    == QuestionRelationDB.MATCH_HIDE_OPTION_QUESTION_THRESHOLD) {
+                isQuestionHideOption = true;
+            }
+        }
+        if (!isQuestionHideOption) {
+            return valueDB;
+        }
+        List<QuestionOptionDB> questionOptionDBs = new ArrayList<>();
+        for (OptionDB optionDB : optionDBs) {
+            questionOptionDBs.addAll(QuestionOptionDB.findByQuestionAndOption(screenQuestionDB,
+                    optionDB));
+        }
+        for (QuestionOptionDB questionOptionDB : questionOptionDBs) {
+            if (questionOptionDB.getQuestionRelation().getOperation()
+                    == QuestionRelationDB.MATCH_HIDE_OPTION_QUESTION_THRESHOLD) {
+                valueDB = hideOptionsIfMatchQuestionThreshold(questionOptionDB, optionDBs, valueDB);
+            }
+        }
+        return valueDB;
+    }
+
+    private ValueDB hideOptionsIfMatchQuestionThreshold(QuestionOptionDB questionOptionDB,
+            List<OptionDB> optionDBs, ValueDB valueDB) {
+        QuestionThresholdDB questionThresholdDB = questionOptionDB.getQuestionThreshold();
+        QuestionDB thresholdQuestion = questionThresholdDB.getQuestionDB();
+        if (questionThresholdDB.isInThreshold(
+                Integer.parseInt(thresholdQuestion.getValueBySession().getValue()))) {
+            for (OptionDB optionDB : optionDBs) {
+                if (optionDB.equals(questionOptionDB.getOptionDB())) {
+                    valueDB = removeValueOfQuestionIfEqualsOption(valueDB, optionDB);
+                    optionDBs.remove(optionDB);
+                    break;
+                }
+            }
+        }
+        return valueDB;
+    }
+
+    private ValueDB removeValueOfQuestionIfEqualsOption(ValueDB value,
+            OptionDB optionDB) {
+        if (value != null && value.getId_option() != null && value.getId_option().equals(
+                optionDB.getId_option())) {
+            value.delete();
+            value = null;
+        }
+        return value;
     }
 
     private void setupNavigationByQuestionView(View rootView, IQuestionView questionView) {
