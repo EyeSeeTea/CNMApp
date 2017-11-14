@@ -149,7 +149,7 @@ android {
             buildConfigField "String", "defaultLocale", "\"en\""
         }
         cnm {
-            applicationId 'org.eyeseetea.surveillance_cnm_bb'
+            applicationId 'org.eyeseetea.surveillance_cnm'
             versionName "0.1.0"
             buildConfigField "boolean", "activeMonitoringFragment", "false"
             buildConfigField "boolean", "reviewScreen", "true"
