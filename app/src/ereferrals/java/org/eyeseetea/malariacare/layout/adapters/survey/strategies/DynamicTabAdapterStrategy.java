@@ -3,11 +3,12 @@ package org.eyeseetea.malariacare.layout.adapters.survey.strategies;
 
 import android.os.Handler;
 import android.view.View;
+import android.widget.LinearLayout;
+import android.widget.ScrollView;
 
 import org.eyeseetea.malariacare.BuildConfig;
 import org.eyeseetea.malariacare.DashboardActivity;
-import android.view.View;
-
+import org.eyeseetea.malariacare.R;
 import org.eyeseetea.malariacare.data.database.model.QuestionDB;
 import org.eyeseetea.malariacare.data.database.model.SurveyDB;
 import org.eyeseetea.malariacare.data.database.utils.PreferencesState;
@@ -16,6 +17,7 @@ import org.eyeseetea.malariacare.domain.entity.Validation;
 import org.eyeseetea.malariacare.layout.adapters.survey.DynamicTabAdapter;
 import org.eyeseetea.malariacare.strategies.UIMessagesStrategy;
 import org.eyeseetea.malariacare.utils.Constants;
+import org.eyeseetea.malariacare.views.question.CommonQuestionView;
 import org.eyeseetea.malariacare.views.question.IQuestionView;
 
 import java.util.List;
@@ -72,6 +74,8 @@ public class DynamicTabAdapterStrategy extends ADynamicTabAdapterStrategy {
 
     @Override
     public void addScrollToSwipeTouchListener(View rowView) {
+        DynamicTabAdapter.swipeTouchListener.addScrollView((ScrollView) (rowView.findViewById(
+                R.id.scrolled_table)).findViewById(R.id.table_scroll));
     }
 
 
@@ -104,12 +108,20 @@ public class DynamicTabAdapterStrategy extends ADynamicTabAdapterStrategy {
                     mDynamicTabAdapter.surveyShowDone();
                 } else {
                     DashboardActivity.dashboardActivity.showReviewFragment();
-                    mDynamicTabAdapter.hideKeyboard(
-                            PreferencesState.getInstance().getContext());
+                    CommonQuestionView.hideKeyboard(
+                            PreferencesState.getInstance().getContext(), mDynamicTabAdapter.getKeyboardView());
                     DynamicTabAdapter.setIsClicked(false);
                 }
                 return;
             }
         }, 750);
     }
+
+    @Override
+    public void initNavigationButtons(boolean readOnly, View nextButton) {
+        if (readOnly) {
+            ((LinearLayout) nextButton.getParent()).setVisibility(View.GONE);
+        }
+    }
+
 }

@@ -10,16 +10,21 @@ import android.preference.Preference;
 import android.preference.PreferenceCategory;
 import android.preference.PreferenceScreen;
 import android.support.v4.app.ActivityCompat;
+import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
 
+import org.eyeseetea.malariacare.BuildConfig;
 import org.eyeseetea.malariacare.EyeSeeTeaApplication;
 import org.eyeseetea.malariacare.LoginActivity;
 import org.eyeseetea.malariacare.R;
 import org.eyeseetea.malariacare.SettingsActivity;
 import org.eyeseetea.malariacare.data.authentication.AuthenticationManager;
+import org.eyeseetea.malariacare.data.database.utils.PreferencesState;
 import org.eyeseetea.malariacare.domain.boundary.IAuthenticationManager;
 import org.eyeseetea.malariacare.domain.usecase.LogoutUseCase;
 import org.eyeseetea.malariacare.layout.listeners.LogoutAndLoginRequiredOnPreferenceClickListener;
+import org.eyeseetea.malariacare.services.PushService;
+import org.eyeseetea.malariacare.services.strategies.PushServiceStrategy;
 import org.eyeseetea.malariacare.utils.LockScreenStatus;
 
 public class SettingsActivityStrategy extends ASettingsActivityStrategy {
@@ -49,6 +54,7 @@ public class SettingsActivityStrategy extends ASettingsActivityStrategy {
     @Override
     public void onStop() {
         applicationdidenterbackground();
+        LocalBroadcastManager.getInstance(settingsActivity).unregisterReceiver(pushReceiver);
         if (EyeSeeTeaApplication.getInstance().isAppWentToBg() && !LockScreenStatus.isPatternSet(
                 settingsActivity)) {
             ActivityCompat.finishAffinity(settingsActivity);
@@ -67,6 +73,11 @@ public class SettingsActivityStrategy extends ASettingsActivityStrategy {
                         settingsActivity.getResources().getString(R.string.pref_cat_server));
         preferenceCategory.removePreference(preferenceScreen.findPreference(
                 settingsActivity.getResources().getString(R.string.org_unit)));
+        if (!PreferencesState.getInstance().isDevelopOptionActive()
+                || !BuildConfig.developerOptions) {
+            preferenceCategory.removePreference(preferenceScreen.findPreference(
+                    settingsActivity.getResources().getString(R.string.drive_key)));
+        }
     }
 
     @Override
@@ -85,14 +96,18 @@ public class SettingsActivityStrategy extends ASettingsActivityStrategy {
 
     @Override
     public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String key) {
-
+        if (key.equals(
+                PreferencesState.getInstance().getContext().getString(R.string.developer_option))) {
+            settingsActivity.restartActivity();
+        }
     }
 
     @Override
     public void onStart() {
         applicationWillEnterForeground();
+        LocalBroadcastManager.getInstance(settingsActivity).registerReceiver(pushReceiver,
+                new IntentFilter(PushService.class.getName()));
     }
-
     private void applicationWillEnterForeground() {
         if (EyeSeeTeaApplication.getInstance().isAppWentToBg()) {
             EyeSeeTeaApplication.getInstance().setIsAppWentToBg(false);
@@ -118,6 +133,8 @@ public class SettingsActivityStrategy extends ASettingsActivityStrategy {
     public void addExtraPreferences() {
         settingsActivity.bindPreferenceSummaryToValue(settingsActivity.findPreference(
                 settingsActivity.getString(R.string.web_service_url)));
+        settingsActivity.bindPreferenceSummaryToValue(
+                settingsActivity.findPreference(settingsActivity.getString(R.string.web_view_url)));
     }
 
     @Override
@@ -131,7 +148,7 @@ public class SettingsActivityStrategy extends ASettingsActivityStrategy {
     }
 
     private void showLogin() {
-        if (LockScreenStatus.isPatternSet(settingsActivity)) {
+        if (!LockScreenStatus.isPatternSet(settingsActivity)) {
             Intent loginIntent = new Intent(settingsActivity, LoginActivity.class);
             loginIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
             settingsActivity.startActivity(loginIntent);
@@ -142,4 +159,17 @@ public class SettingsActivityStrategy extends ASettingsActivityStrategy {
     public void onDestroy() {
         settingsActivity.unregisterReceiver(mScreenOffReceiver);
     }
+
+    private BroadcastReceiver pushReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            showLoginIfConfigFileObsolete(intent);
+        }
+
+        private void showLoginIfConfigFileObsolete(Intent intent) {
+            if (intent.getBooleanExtra(PushServiceStrategy.SHOW_LOGIN, false)) {
+                showLogin();
+            }
+        }
+    };
 }

@@ -22,13 +22,16 @@ package org.eyeseetea.malariacare.data.database;
 import com.raizlabs.android.dbflow.annotation.Database;
 import com.raizlabs.android.dbflow.sql.language.NameAlias;
 
+import org.eyeseetea.malariacare.BuildConfig;
+
 @Database(
-        name = AppDatabase.NAME, version = AppDatabase.VERSION
+        name = AppDatabase.NAME, version = AppDatabase.VERSION,
+        inMemory = BuildConfig.databaseInMemory
 )
 
 public class AppDatabase {
     public static final String NAME = "EyeSeeTeaDB";
-    public static final int VERSION = 10;
+    public static final int VERSION = 14;
 
 
     // Aliases used for EyeSeeTea DB queries
@@ -53,6 +56,7 @@ public class AppDatabase {
     public static final String answerName = "a";
     public static final String orgUnitName = "ou";
     public static final String optionAttributeName = "oa";
+    public static final String programProgramRelationName = "pp";
 
     public static final NameAlias questionAlias = NameAlias.builder(questionName).build();
     public static final NameAlias questionRelationAlias = NameAlias.builder(
@@ -90,6 +94,8 @@ public class AppDatabase {
             orgUnitName).build();
     public static final NameAlias optionAttributeAlias = NameAlias.builder(
             optionAttributeName).build();
+    public static final NameAlias programProgramRelationAlias = NameAlias.builder(
+            programProgramRelationName).build();
 
 
     // Aliases used in DHIS2 DB wrappers

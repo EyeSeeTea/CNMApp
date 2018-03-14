@@ -3,25 +3,29 @@ package org.eyeseetea.malariacare.data.database.utils.populatedb;
 import android.support.annotation.Nullable;
 
 import org.eyeseetea.malariacare.data.database.model.AnswerDB;
-import org.eyeseetea.malariacare.data.database.model.DrugDB;
 import org.eyeseetea.malariacare.data.database.model.DrugCombinationDB;
+import org.eyeseetea.malariacare.data.database.model.DrugDB;
 import org.eyeseetea.malariacare.data.database.model.HeaderDB;
 import org.eyeseetea.malariacare.data.database.model.MatchDB;
 import org.eyeseetea.malariacare.data.database.model.OptionAttributeDB;
 import org.eyeseetea.malariacare.data.database.model.OptionDB;
 import org.eyeseetea.malariacare.data.database.model.PartnerDB;
+import org.eyeseetea.malariacare.data.database.model.PhoneFormatDB;
 import org.eyeseetea.malariacare.data.database.model.ProgramDB;
+import org.eyeseetea.malariacare.data.database.model.ProgramProgramRelationDB;
 import org.eyeseetea.malariacare.data.database.model.QuestionDB;
 import org.eyeseetea.malariacare.data.database.model.QuestionOptionDB;
 import org.eyeseetea.malariacare.data.database.model.QuestionRelationDB;
 import org.eyeseetea.malariacare.data.database.model.QuestionThresholdDB;
-import org.eyeseetea.malariacare.data.database.model.StringKeyDB;
 import org.eyeseetea.malariacare.data.database.model.TabDB;
 import org.eyeseetea.malariacare.data.database.model.TranslationDB;
 import org.eyeseetea.malariacare.data.database.model.TreatmentDB;
 import org.eyeseetea.malariacare.data.database.model.TreatmentMatchDB;
+import org.eyeseetea.malariacare.data.database.utils.populatedb.strategies.APopulateRowStrategy;
+import org.eyeseetea.malariacare.data.database.utils.populatedb.strategies.PopulateRowStrategy;
 
 import java.util.HashMap;
+import java.util.Map;
 
 public class PopulateRow {
     static QuestionDB populateQuestion(String[] line, HashMap<Long, HeaderDB> headerFK,
@@ -81,6 +85,7 @@ public class PopulateRow {
         }
         programDB.setUid(line[1]);
         programDB.setName(line[2]);
+        programDB.setStageUid(line[3]);
         return programDB;
     }
 
@@ -185,18 +190,12 @@ public class PopulateRow {
      * Method to populate each row of TreatmentDB.csv, execute after populateOrganisations.
      *
      * @param line The row of the csv to populate.
-     * @param stringKeyList
      */
     static TreatmentDB populateTreatments(String[] line, HashMap<Long, PartnerDB> organisationFK,
-            HashMap<Long, StringKeyDB> stringKeyList, @Nullable TreatmentDB treatmentDB) {
-        if (treatmentDB == null) {
-            treatmentDB = new TreatmentDB();
-        }
-        treatmentDB.setOrganisation(organisationFK.get(Long.parseLong(line[1])));
-        treatmentDB.setDiagnosis(stringKeyList.get(Long.valueOf(line[2])).getId_string_key());
-        treatmentDB.setMessage(stringKeyList.get(Long.valueOf(line[3])).getId_string_key());
-        treatmentDB.setType(Integer.parseInt(line[4]));
-        return treatmentDB;
+ @Nullable TreatmentDB treatmentDB) {
+        APopulateRowStrategy populateRowStrategy = new PopulateRowStrategy();
+        return populateRowStrategy.populateTreatments(line, organisationFK,
+                treatmentDB);
     }
 
     /**
@@ -243,23 +242,23 @@ public class PopulateRow {
         return optionDB;
     }
 
-    static StringKeyDB populateStringKey(String[] line, @Nullable StringKeyDB stringKeyDB) {
-        if (stringKeyDB == null) {
-            stringKeyDB = new StringKeyDB();
+
+    public static PhoneFormatDB populatePhoneFormat(String[] line,
+            Map<Integer, ProgramDB> programFK, @Nullable PhoneFormatDB phoneFormatDB) {
+        if (phoneFormatDB == null) {
+            phoneFormatDB = new PhoneFormatDB();
+            phoneFormatDB.setId_program_fk(programFK.get(Integer.valueOf(line[1])).getId_program());
+            phoneFormatDB.setPhoneMask(line[2]);
+            phoneFormatDB.setTrunkPrefix(line[3]);
+            phoneFormatDB.setPrefixToPut(line[4]);
         }
-        stringKeyDB.setKey(line[1]);
-        return stringKeyDB;
+        return phoneFormatDB;
     }
 
-    public static TranslationDB populateTranslation(String[] line,
-            HashMap<Long, StringKeyDB> stringKeyFK,
-            TranslationDB translationDB) {
-        if (translationDB == null) {
-            translationDB = new TranslationDB();
-        }
-        translationDB.setId_string_key(stringKeyFK.get(Long.valueOf(line[1])).getId_string_key());
-        translationDB.setTranslation(line[2]);
-        translationDB.setLanguage(line[3]);
-        return translationDB;
+    public static ProgramProgramRelationDB populateProgramProgramRelation(String[] line,
+            Map<Integer, ProgramDB> programFK) {
+        return new ProgramProgramRelationDB(
+                programFK.get(Integer.valueOf(line[1])).getId_program(),
+                programFK.get(Integer.valueOf(line[2])).getId_program());
     }
 }

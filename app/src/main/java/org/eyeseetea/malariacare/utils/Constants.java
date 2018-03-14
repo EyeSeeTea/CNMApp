@@ -39,8 +39,8 @@ public class Constants {
             DYNAMIC_STOCK_IMAGE_RADIO_BUTTON = 28,
             PREGNANT_MONTH_INT = 29,
             YEAR = 30,
-            DROPDOWN_LIST_OU_TREE = 31;
-
+            DROPDOWN_LIST_OU_TREE = 31,
+            IMAGES_VERTICAL = 32;
 
     public static final List<Integer> QUESTION_TYPES_WITH_OPTIONS = Arrays.asList(
             DROPDOWN_LIST,
@@ -57,7 +57,8 @@ public class Constants {
             IMAGE_RADIO_GROUP_NO_DATAELEMENT,
             IMAGE_RADIO_GROUP,
             DYNAMIC_STOCK_IMAGE_RADIO_BUTTON,
-            DROPDOWN_LIST_OU_TREE
+            DROPDOWN_LIST_OU_TREE,
+            IMAGES_VERTICAL
     );
 
     public static final List<Integer> QUESTION_TYPES_NO_DATA_ELEMENT =
@@ -148,6 +149,7 @@ public class Constants {
     // Values to identify image/video on media_type column in the DB
     public static final int MEDIA_TYPE_IMAGE = 0;
     public static final int MEDIA_TYPE_VIDEO = 1;
+    public static final int MEDIA_TYPE_UNKNOWN = 2;
     public static final String MEDIA_SEPARATOR="#";
     public static final int NO_MEDIA_ID=-1;
     public static final String MEDIA_FOLDER = "media";

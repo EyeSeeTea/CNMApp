@@ -1,7 +1,5 @@
 package org.eyeseetea.malariacare.domain.usecase;
 
-import android.util.Log;
-
 import org.eyeseetea.malariacare.domain.boundary.IAuthenticationManager;
 import org.eyeseetea.malariacare.domain.boundary.executors.IAsyncExecutor;
 import org.eyeseetea.malariacare.domain.boundary.executors.IMainExecutor;
@@ -50,10 +48,10 @@ public class LoginUseCase extends ALoginUseCase implements UseCase {
         mAsyncExecutor.run(this);
     }
 
+
     @Override
     public void run() {
-
-        if(insertedCredentials.isDemoCredentials()){
+        if (insertedCredentials.isDemoCredentials()) {
             runDemoLogin();
         }else {
             if (isLoginEnable()) {
@@ -148,9 +146,13 @@ public class LoginUseCase extends ALoginUseCase implements UseCase {
                     true);
         }
 
-        mCredentialsLocalDataSource.saveOrganisationCredentials(orgUnitCredentials);
+        if (orgUnitCredentials != null) {
+            mCredentialsLocalDataSource.saveOrganisationCredentials(orgUnitCredentials);
+            checkUserCredentialsWithOrgUnit(orgUnitCredentials, false);
+        } else {
+            notifyUnexpectedError();
+        }
 
-        checkUserCredentialsWithOrgUnit(orgUnitCredentials, false);
     }
 
 

@@ -19,6 +19,8 @@
 
 package org.eyeseetea.malariacare.data.database.model;
 
+import static org.eyeseetea.malariacare.data.database.AppDatabase.optionAlias;
+import static org.eyeseetea.malariacare.data.database.AppDatabase.optionName;
 import static org.eyeseetea.malariacare.data.database.AppDatabase.orgUnitAlias;
 import static org.eyeseetea.malariacare.data.database.AppDatabase.orgUnitName;
 import static org.eyeseetea.malariacare.data.database.AppDatabase.programAlias;
@@ -31,6 +33,7 @@ import static org.eyeseetea.malariacare.data.database.AppDatabase.valueAlias;
 import static org.eyeseetea.malariacare.data.database.AppDatabase.valueName;
 
 import android.content.Context;
+import android.support.annotation.NonNull;
 import android.util.Log;
 
 import com.raizlabs.android.dbflow.annotation.Column;
@@ -38,6 +41,7 @@ import com.raizlabs.android.dbflow.annotation.PrimaryKey;
 import com.raizlabs.android.dbflow.annotation.Table;
 import com.raizlabs.android.dbflow.config.FlowManager;
 import com.raizlabs.android.dbflow.sql.language.ConditionGroup;
+import com.raizlabs.android.dbflow.sql.language.Delete;
 import com.raizlabs.android.dbflow.sql.language.Join;
 import com.raizlabs.android.dbflow.sql.language.Method;
 import com.raizlabs.android.dbflow.sql.language.OrderBy;
@@ -62,6 +66,7 @@ import org.eyeseetea.malariacare.domain.exception.ConversionException;
 import org.eyeseetea.malariacare.strategies.SurveyFragmentStrategy;
 import org.eyeseetea.malariacare.utils.Constants;
 import org.hisp.dhis.client.sdk.android.api.persistence.flow.EventFlow;
+import org.joda.time.DateTime;
 
 import java.util.ArrayList;
 import java.util.Date;
@@ -174,6 +179,17 @@ public class SurveyDB extends BaseModel implements VisitableToSDK {
         this.setProgram(programDB);
         this.setUser(userDB);
         this.type = type;
+    }
+
+    public SurveyDB(String orgUnitUID, String programUID, String userUID, int type) {
+        this();
+        this.status = Constants.SURVEY_IN_PROGRESS;
+
+        this.setOrgUnit(OrgUnitDB.findByUID(orgUnitUID));
+        this.setProgram(ProgramDB.getProgram(programUID));
+        this.setUser(UserDB.findByUID(userUID));
+        this.type = type;
+
     }
 
 
@@ -503,6 +519,17 @@ public class SurveyDB extends BaseModel implements VisitableToSDK {
                         date)).queryList();
     }
 
+    public static SurveyDB findSurveysWithProgramAndEventDate(String uidProgram,
+            Date date) {
+        return new Select().from(SurveyDB.class).as(surveyName)
+                .join(ProgramDB.class, Join.JoinType.LEFT_OUTER).as(programName)
+                .on(SurveyDB_Table.id_program_fk.withTable(surveyAlias)
+                        .eq(ProgramDB_Table.id_program.withTable(programAlias)))
+                .where(ProgramDB_Table.uid_program.withTable(programAlias)
+                        .eq(uidProgram))
+                .and(SurveyDB_Table.event_date.withTable(surveyAlias).is(date)).querySingle();
+    }
+
     public static Date getLastDateForSurveyType(int type) {
         SurveyDB surveyDB = new Select().
                 from(SurveyDB.class)
@@ -534,6 +561,18 @@ public class SurveyDB extends BaseModel implements VisitableToSDK {
                 .where(ProgramDB_Table.id_program.withTable(programAlias)
                         .eq(programDB.getId_program()))
                 .and(SurveyDB_Table.type.withTable(surveyAlias).is(type)).queryList();
+    }
+
+    public static List<SurveyDB> getSurveysWithProgram(String programUID) {
+        return new Select().from(SurveyDB.class).as(surveyName)
+                .join(ProgramDB.class, Join.JoinType.LEFT_OUTER).as(programName)
+                .on(SurveyDB_Table.id_program_fk.withTable(surveyAlias)
+                        .eq(ProgramDB_Table.id_program.withTable(programAlias)))
+                .where(ProgramDB_Table.uid_program.withTable(programAlias)
+                        .eq(programUID))
+                .and(SurveyDB_Table.status.withTable(surveyAlias).isNot(
+                        Constants.SURVEY_IN_PROGRESS))
+                .orderBy(SurveyDB_Table.event_date, false).queryList();
     }
 
     /**
@@ -1052,6 +1091,51 @@ public class SurveyDB extends BaseModel implements VisitableToSDK {
             surveyDB.delete();
         }
     }
+
+    public static void deleteOlderSentSurveys(int numberOfDaysAfter) {
+
+        Date dateWithDaysAdded = minusDaysTo(new Date(), numberOfDaysAfter);
+        List<SurveyDB> sentSurveys = getAllSentSurveysOlderThan(dateWithDaysAdded);
+
+        deleteSurveys(sentSurveys);
+    }
+
+    public static void deleteSurveys(List<SurveyDB> surveys) {
+        for (SurveyDB surveyDB : surveys) {
+            new Delete().from(ValueDB.class).where(
+                    ValueDB_Table.id_survey_fk.eq(surveyDB.getId_survey()));
+            surveyDB.delete();
+        }
+    }
+
+    @NonNull
+    public static Date minusDaysTo(Date date, int numberOfDaysAfter) {
+        DateTime dateTime = new DateTime(date);
+        dateTime = dateTime.minusDays(numberOfDaysAfter);
+        return dateTime.toDate();
+    }
+
+    @NonNull
+    public static List<SurveyDB> getAllSentSurveysOlderThan(Date oldestAllowedDate) {
+
+        return new Select().from(SurveyDB.class).where(
+                SurveyDB_Table.status.is(Constants.SURVEY_SENT),
+                SurveyDB_Table.event_date.lessThanOrEq(oldestAllowedDate)).queryList();
+    }
+
+    public OptionDB getOptionSelectedForQuestionCode(String questionCode) {
+        return new Select().from(OptionDB.class).as(optionName)
+                .join(ValueDB.class, Join.JoinType.LEFT_OUTER).as(valueName)
+                .on(ValueDB_Table.id_option_fk.withTable(valueAlias)
+                        .eq(OptionDB_Table.id_option.withTable(optionAlias)))
+                .join(QuestionDB.class, Join.JoinType.LEFT_OUTER).as(questionName)
+                .on(QuestionDB_Table.id_question.withTable(questionAlias)
+                        .eq(ValueDB_Table.id_question_fk.withTable(valueAlias)))
+                .where(ValueDB_Table.id_survey_fk.withTable(valueAlias).eq(this.getId_survey()))
+                .and(QuestionDB_Table.code.withTable(questionAlias).eq(questionCode))
+                .querySingle();
+    }
+
     /**
      * This method get the return the highest number of total pages in the survey mQuestionDB values.
      */
@@ -1169,4 +1253,5 @@ public class SurveyDB extends BaseModel implements VisitableToSDK {
                 ", type=" + type +
                 '}';
     }
+
 }

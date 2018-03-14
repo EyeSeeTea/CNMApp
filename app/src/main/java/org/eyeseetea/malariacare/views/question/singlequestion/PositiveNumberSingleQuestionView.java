@@ -4,15 +4,19 @@ import android.content.Context;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.inputmethod.EditorInfo;
+import android.widget.EditText;
 import android.widget.TextView;
 
 import org.eyeseetea.malariacare.R;
+import org.eyeseetea.malariacare.data.database.model.QuestionDB;
 import org.eyeseetea.malariacare.data.database.model.ValueDB;
 import org.eyeseetea.malariacare.domain.entity.PositiveNumber;
 import org.eyeseetea.malariacare.domain.entity.Validation;
 import org.eyeseetea.malariacare.domain.exception.InvalidPositiveNumberException;
 import org.eyeseetea.malariacare.views.question.AKeyboardSingleQuestionView;
 import org.eyeseetea.malariacare.views.question.IQuestionView;
+import org.eyeseetea.malariacare.views.question.singlequestion.strategies.NumberSingleQuestionViewStrategy;
+import org.eyeseetea.malariacare.views.question.singlequestion.strategies.SingleQuestionViewStrategyStrategy;
 import org.eyeseetea.sdk.presentation.views.CustomButton;
 import org.eyeseetea.sdk.presentation.views.CustomEditText;
 
@@ -20,11 +24,18 @@ public class PositiveNumberSingleQuestionView extends AKeyboardSingleQuestionVie
         IQuestionView {
     CustomEditText numberPicker;
     CustomButton sendButton;
+    private NumberSingleQuestionViewStrategy mPositiveNumberSingleQuestionViewStrategy;
 
     public PositiveNumberSingleQuestionView(Context context) {
         super(context);
-
+        mPositiveNumberSingleQuestionViewStrategy =
+                new SingleQuestionViewStrategyStrategy();
         init(context);
+    }
+
+    @Override
+    public EditText getAnswerView() {
+        return numberPicker;
     }
 
     @Override
@@ -77,6 +88,11 @@ public class PositiveNumberSingleQuestionView extends AKeyboardSingleQuestionVie
                 return false;
             }
         });
+    }
+
+    @Override
+    public void setQuestionDB(QuestionDB questionDB) {
+        mPositiveNumberSingleQuestionViewStrategy.setQuestionDB(this, questionDB);
     }
 
     @Override

@@ -4,10 +4,11 @@ import org.eyeseetea.malariacare.data.database.utils.PreferencesState;
 import org.eyeseetea.malariacare.data.repositories.MediaRepository;
 import org.eyeseetea.malariacare.domain.boundary.IConnectivityManager;
 import org.eyeseetea.malariacare.domain.boundary.executors.IAsyncExecutor;
+import org.eyeseetea.malariacare.domain.boundary.executors.IMainExecutor;
 import org.eyeseetea.malariacare.domain.boundary.io.IFileDownloader;
 import org.eyeseetea.malariacare.domain.boundary.repositories.IProgramRepository;
 import org.eyeseetea.malariacare.domain.entity.Media;
-import org.eyeseetea.malariacare.domain.exception.FileDownloadException;
+import org.eyeseetea.malariacare.domain.exception.NetworkException;
 import org.eyeseetea.malariacare.domain.usecase.UseCase;
 import org.eyeseetea.sdk.common.FileUtils;
 
@@ -15,7 +16,7 @@ import java.util.List;
 
 public class DownloadMediaUseCase implements UseCase {
     public interface Callback {
-        void onError(FileDownloadException ex);
+        void onError(Throwable ex);
 
         void onSuccess(int syncedFiles);
 
@@ -24,6 +25,7 @@ public class DownloadMediaUseCase implements UseCase {
 
     private Callback mCallback;
     private IAsyncExecutor mAsyncExecutor;
+    private IMainExecutor mMainExecutor;
     private IFileDownloader mFileDownloader;
     private IConnectivityManager mConnectivityManager;
     private IProgramRepository mProgramRepository;
@@ -31,11 +33,13 @@ public class DownloadMediaUseCase implements UseCase {
 
     public DownloadMediaUseCase(
             IAsyncExecutor asyncExecutor,
+            IMainExecutor mainExecutor,
             IFileDownloader fileDownloader,
             IConnectivityManager connectivityManager,
             IProgramRepository programRepository,
             MediaRepository mediaRepository) {
         mAsyncExecutor = asyncExecutor;
+        mMainExecutor = mainExecutor;
         mFileDownloader = fileDownloader;
         mConnectivityManager = connectivityManager;
         mProgramRepository = programRepository;
@@ -54,40 +58,44 @@ public class DownloadMediaUseCase implements UseCase {
 
         final List<Media> currentMedias = mMediaRepository.getAll();
 
+        IFileDownloader.Callback callback = new IFileDownloader.Callback() {
+            @Override
+            public void onError(Throwable ex) {
+                notifyDownloadError(ex);
+                mFileDownloader.changeFileDownloaderIProgress(false);
+                notifyDownloadInProgressChanges(false);
+            }
+
+            @Override
+            public void onSuccess(List<Media> syncMedias) {
+                int numOfSyncedFiles = saveDownloadedMedia(syncMedias);
+
+                removeNotDownloadedMedia(syncMedias, currentMedias);
+                notifyDownloadSuccess(numOfSyncedFiles);
+                mFileDownloader.changeFileDownloaderIProgress(false);
+                notifyDownloadInProgressChanges(false);
+            }
+
+        };
+
         if (mConnectivityManager.isDeviceOnline()) {
-            if(mFileDownloader.isFileDownloaderIProgress()) {
+            if (mFileDownloader.isFileDownloaderIProgress()) {
                 System.out.println("File downloader is already downloading");
                 return;
             }
 
-            mCallback.onDownloadInProgressChanged(true);
+            notifyDownloadInProgressChanges(true);
+
             mFileDownloader.changeFileDownloaderIProgress(true);
 
             mFileDownloader.download(currentMedias,
                     PreferencesState.getInstance().getDriveRootFolderUid(),
                     mProgramRepository.getUserProgram().getCode(),
-                    new IFileDownloader.Callback() {
-                        @Override
-                        public void onError(FileDownloadException ex) {
-                            mCallback.onError(ex);
-                            mFileDownloader.changeFileDownloaderIProgress(false);
-                            mCallback.onDownloadInProgressChanged(false);
-                        }
-
-                        @Override
-                        public void onSuccess(List<Media> syncMedias) {
-                            int numOfSyncedFiles = saveDownloadedMedia(syncMedias);
-
-                            removeNotDownloadedMedia(syncMedias, currentMedias);
-                            mCallback.onSuccess(numOfSyncedFiles);
-                            mFileDownloader.changeFileDownloaderIProgress(false);
-                            mCallback.onDownloadInProgressChanged(false);
-                        }
-
-                    });
+                    callback);
         } else {
             System.out.println(this.getClass().getSimpleName()
                     + ": No wifi connection available. Media will not be synced");
+            callback.onError(new NetworkException());
             mFileDownloader.changeFileDownloaderIProgress(false);
         }
     }
@@ -124,5 +132,32 @@ public class DownloadMediaUseCase implements UseCase {
                         mMediaRepository.findByUid(localMedia.getResourceUrl()));
             }
         }
+    }
+
+    private void notifyDownloadInProgressChanges(final boolean value) {
+        mMainExecutor.run(new Runnable() {
+            @Override
+            public void run() {
+                mCallback.onDownloadInProgressChanged(value);
+            }
+        });
+    }
+
+    private void notifyDownloadError(final Throwable exception) {
+        mMainExecutor.run(new Runnable() {
+            @Override
+            public void run() {
+                mCallback.onError(exception);
+            }
+        });
+    }
+
+    private void notifyDownloadSuccess(final int numOfSyncedFiles) {
+        mMainExecutor.run(new Runnable() {
+            @Override
+            public void run() {
+                mCallback.onSuccess(numOfSyncedFiles);
+            }
+        });
     }
 }

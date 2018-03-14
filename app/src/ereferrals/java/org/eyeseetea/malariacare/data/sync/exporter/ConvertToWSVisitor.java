@@ -6,9 +6,11 @@ import android.location.Location;
 import org.eyeseetea.malariacare.R;
 import org.eyeseetea.malariacare.data.database.CredentialsLocalDataSource;
 import org.eyeseetea.malariacare.data.database.datasources.AppInfoDataSource;
+import org.eyeseetea.malariacare.data.database.datasources.CountryVersionLocalDataSource;
 import org.eyeseetea.malariacare.data.database.datasources.DeviceDataSource;
 import org.eyeseetea.malariacare.data.database.datasources.ProgramLocalDataSource;
 import org.eyeseetea.malariacare.data.database.datasources.SettingsDataSource;
+import org.eyeseetea.malariacare.data.database.model.OptionDB;
 import org.eyeseetea.malariacare.data.database.model.SurveyDB;
 import org.eyeseetea.malariacare.data.database.model.ValueDB;
 import org.eyeseetea.malariacare.data.database.utils.LocationMemory;
@@ -19,10 +21,13 @@ import org.eyeseetea.malariacare.data.sync.exporter.model.SurveyContainerWSObjec
 import org.eyeseetea.malariacare.data.sync.exporter.model.SurveySendAction;
 import org.eyeseetea.malariacare.data.sync.exporter.model.Voucher;
 import org.eyeseetea.malariacare.domain.boundary.repositories.IAppInfoRepository;
+import org.eyeseetea.malariacare.domain.boundary.repositories.ICountryVersionRepository;
 import org.eyeseetea.malariacare.domain.boundary.repositories.ICredentialsRepository;
 import org.eyeseetea.malariacare.domain.boundary.repositories.IDeviceRepository;
+import org.eyeseetea.malariacare.domain.boundary.repositories.IProgramRepository;
 import org.eyeseetea.malariacare.domain.boundary.repositories.ISettingsRepository;
 import org.eyeseetea.malariacare.domain.entity.AppInfo;
+import org.eyeseetea.malariacare.domain.entity.Configuration;
 import org.eyeseetea.malariacare.domain.entity.Credentials;
 import org.eyeseetea.malariacare.domain.entity.Device;
 import org.eyeseetea.malariacare.domain.exception.ConversionException;
@@ -41,19 +46,40 @@ public class ConvertToWSVisitor implements IConvertToSDKVisitor {
     private String language;
 
     public ConvertToWSVisitor() {
+        IDeviceRepository deviceDataSource = new DeviceDataSource();
+        Device device = deviceDataSource.getDevice();
+        init(device);
+    }
+
+    public ConvertToWSVisitor(Device device) {
+        init(device);
+    }
+
+    private void init(Device device) {
         ICredentialsRepository credentialsRepository = new CredentialsLocalDataSource();
         ISettingsRepository currentLanguageRepository = new SettingsDataSource();
-        IDeviceRepository deviceDataSource = new DeviceDataSource();
         IAppInfoRepository appInfoDataSource = new AppInfoDataSource();
         AppInfo appInfo = appInfoDataSource.getAppInfo();
-        Device device = deviceDataSource.getDevice();
         Credentials credentials = credentialsRepository.getOrganisationCredentials();
         language = currentLanguageRepository.getSettings().getLanguage();
         mSurveyContainerWSObject = new SurveyContainerWSObject(
                 PreferencesState.getInstance().getContext().getString(
                         R.string.ws_version), device.getAndroidVersion(), credentials.getUsername(),
                 credentials.getPassword(), language, getAndroidInfo(device, appInfo),
-                appInfo.getMetadataVersion());
+                appInfo.getMetadataVersion(), getConfigFileVersion());
+    }
+
+    private int getConfigFileVersion() {
+        IProgramRepository mProgramLocalDataSource = new ProgramLocalDataSource();
+        String uid = mProgramLocalDataSource.getUserProgram().getId();
+        ICountryVersionRepository countryVersionRepository = new CountryVersionLocalDataSource();
+        Configuration.CountryVersion countryVersion =
+                countryVersionRepository.getCountryVersionForUID(uid);
+        if (countryVersion != null) {
+            return countryVersion.getVersion();
+        } else {
+            return 0;
+        }
     }
 
     private String getAndroidInfo(Device device, AppInfo appInfo) {
@@ -95,10 +121,10 @@ public class ConvertToWSVisitor implements IConvertToSDKVisitor {
         surveySendAction.setActionId(CodeGenerator.generateCode());
         surveySendAction.setType(SURVEY_ACTION_ID);
         surveySendAction.setDataValues(getValuesWSFromSurvey(survey));
-        surveySendAction.setVoucher(new Voucher(survey.getEventUid(), hasPhone(survey)));
+        surveySendAction.setVoucher(new Voucher(survey.getEventUid(), getVoucherType(survey)));
         ProgramLocalDataSource programLocalDataSource = new ProgramLocalDataSource();
         surveySendAction.setProgram(programLocalDataSource.getUserProgram().getCode());
-        surveySendAction.setEventDateTime(getEventDateTimeString(survey.getEventDate()));
+        surveySendAction.setSourceAddedDateTime(getEventDateTimeString(survey.getEventDate()));
         Location location = LocationMemory.get(survey.getId_survey());
         surveySendAction.setCoordinate(
                 new Coordinate(location.getLatitude(), location.getLongitude()));
@@ -111,16 +137,35 @@ public class ConvertToWSVisitor implements IConvertToSDKVisitor {
         return Utils.parseDateToString(eventDate, ISO_FORMAT, timeZone);
     }
 
-    private boolean hasPhone(SurveyDB survey) {
+    private String getVoucherType(SurveyDB survey) {
         Context context = PreferencesState.getInstance().getContext();
-        for (ValueDB value : survey.getValueDBs()) {
-            if (value.getQuestionDB().getCode().equals(
-                    context.getString(R.string.phone_ownership_qc))) {
-                return !(value.getOptionDB().getCode().equals(
-                        context.getString(R.string.no_phone_oc)));
-            }
+        if (noIssueVoucher(survey, context)) {
+            return Voucher.TYPE_NO_VOUCHER;
+        } else if (hasPhone(survey, context)) {
+            return Voucher.TYPE_PHONE;
+        } else {
+            return Voucher.TYPE_PAPER;
         }
-        return false;
+    }
+
+    private boolean noIssueVoucher(SurveyDB survey, Context context) {
+        OptionDB noIssueOption = survey.getOptionSelectedForQuestionCode(
+                context.getString(R.string.issue_voucher_qc));
+        if (noIssueOption == null) {
+            return false;
+        }
+        return noIssueOption.getName().equals(
+                context.getString(R.string.no_voucher_on));
+    }
+
+    private boolean hasPhone(SurveyDB survey, Context context) {
+        OptionDB optionDB = survey.getOptionSelectedForQuestionCode(
+                context.getString(R.string.phone_ownership_qc));
+        if (optionDB == null) {
+            return false;
+        }
+        return !(optionDB.getName().equals(
+                context.getString(R.string.no_phone_on)));
     }
 
     public SurveyContainerWSObject getSurveyContainerWSObject() {

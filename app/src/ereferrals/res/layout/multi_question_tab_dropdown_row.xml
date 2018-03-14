@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_weight="0.5"
@@ -53,7 +54,8 @@
                     android:paddingRight="@dimen/input_edit_text_right_padding"
                     android:textColor="@color/text_first_color"
                     android:textSize="?attr/font_xsmall"
-                    app:font_name="@string/normal_font" />
+                    app:font_name="@string/normal_font"
+                    tools:text="Title" />
 
                 <ImageView
                     android:id="@+id/row_header_compulsory"
@@ -63,18 +65,17 @@
                     android:layout_toRightOf="@+id/row_header_text"
                     android:layout_weight="0.1"
                     android:adjustViewBounds="true"
-                    android:gravity="right|center_vertical"
+                    android:gravity="right"
                     android:scaleType="fitCenter"
                     android:src="@drawable/compulsory"
-                    android:visibility="invisible" />
+                    android:visibility="invisible"
+                    tools:visibility="visible" />
             </LinearLayout>
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="5dp"
-                android:layout_marginLeft="@dimen/input_edit_text_margin"
-                android:layout_marginRight="@dimen/input_edit_text_margin"
                 android:layout_marginTop="@dimen/input_edit_text_top_bottom"
                 android:background="@android:color/transparent">
 
@@ -82,8 +83,6 @@
                     android:id="@+id/answer"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginLeft="@dimen/input_edit_text_margin"
-                    android:layout_marginRight="@dimen/input_edit_text_margin"
                     android:gravity="left"
                     android:textColor="@color/text_first_color"
                     android:paddingBottom="2dip"
