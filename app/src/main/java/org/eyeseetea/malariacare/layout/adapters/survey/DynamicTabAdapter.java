@@ -44,6 +44,7 @@ import android.widget.Switch;
 import android.widget.TableLayout;
 import android.widget.TableRow;
 
+import org.eyeseetea.malariacare.BuildConfig;
 import org.eyeseetea.malariacare.DashboardActivity;
 import org.eyeseetea.malariacare.R;
 import org.eyeseetea.malariacare.data.database.model.OptionAttributeDB;
@@ -85,8 +86,8 @@ import org.eyeseetea.malariacare.views.question.multiquestion.DatePickerQuestion
 import org.eyeseetea.malariacare.views.question.multiquestion.YearSelectorQuestionView;
 import org.eyeseetea.malariacare.views.question.singlequestion.ImageRadioButtonSingleQuestionView;
 import org.eyeseetea.malariacare.views.question.singlequestion.NumberSingleQuestionView;
-import org.eyeseetea.malariacare.views.question.singlequestion.strategies.ConfirmCounterSingleCustomViewStrategy;
-import org.eyeseetea.malariacare.views.question.singlequestion.strategies.ConfirmCounterSingleCustomViewStrategy;
+import org.eyeseetea.malariacare.views.question.singlequestion.strategies
+        .ConfirmCounterSingleCustomViewStrategy;
 import org.eyeseetea.sdk.presentation.views.CustomEditText;
 import org.eyeseetea.sdk.presentation.views.CustomTextView;
 
@@ -225,7 +226,7 @@ public class DynamicTabAdapter extends BaseAdapter implements ITabAdapter {
                     return;
                 }
                 Log.d(TAG, "onSwipeLeft(next)");
-                if (readOnly)
+                if (readOnly && !BuildConfig.showReviewInReadMode)
                     next();
                 else if (navigationController.isNextAllowed()) {
                     CommonQuestionView.hideKeyboard(listView.getContext(), listView);
@@ -869,6 +870,7 @@ public class DynamicTabAdapter extends BaseAdapter implements ITabAdapter {
                         navigationController.getCurrentTab().getType())) {
                     UIMessagesStrategy.getInstance().showCompulsoryUnansweredToast();
                     isClicked = false;
+                    mDynamicTabAdapterStrategy.showValidationErrors();
                     return;
                 } else {
                     isClicked = false;
@@ -1055,7 +1057,7 @@ public class DynamicTabAdapter extends BaseAdapter implements ITabAdapter {
      * value.
      */
     public void finishOrNext() {
-        mDynamicTabAdapterStrategy.finishOrNext();
+        mDynamicTabAdapterStrategy.finishOrNext(readOnly);
     }
 
     /**
@@ -1191,7 +1193,13 @@ public class DynamicTabAdapter extends BaseAdapter implements ITabAdapter {
             navigationController.isMovingToForward = false;
             return;
         }
-        navigationController.next(valueDB != null ? valueDB.getOptionDB() : null);
+        QuestionDB question = null;
+        if (questionDB.hasQuestionThresholds()) {
+            question = navigationController.next(Integer.parseInt(valueDB.getValue()));
+        }
+        if (question == null) {
+            navigationController.next(valueDB != null ? valueDB.getOptionDB() : null);
+        }
 
         notifyDataSetChanged();
         CommonQuestionView.hideKeyboard(PreferencesState.getInstance().getContext(), keyboardView);

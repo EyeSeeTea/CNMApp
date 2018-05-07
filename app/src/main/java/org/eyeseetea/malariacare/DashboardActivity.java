@@ -155,22 +155,24 @@ public class DashboardActivity extends BaseActivity {
     }
 
     public void setTabHostsWithImages() {
-        Context context = PreferencesState.getInstance().getContext();
-        setTab(context.getResources().getString(R.string.tab_tag_assess), R.id.tab_assess_layout,
-                context.getResources().getDrawable(R.drawable.tab_assess));
-        setTab(context.getResources().getString(R.string.tab_tag_improve), R.id.tab_improve_layout,
-                context.getResources().getDrawable(R.drawable.tab_improve));
+        setTab(getResources().getString(R.string.tab_tag_assess), R.id.tab_assess_layout,
+                getResources().getDrawable(R.drawable.tab_assess));
+        setTab(getResources().getString(R.string.tab_tag_improve), R.id.tab_improve_layout,
+                getResources().getDrawable(R.drawable.tab_improve));
         if (GradleVariantConfig.isStockFragmentActive()) {
             mDashboardActivityStrategy.setStockTab(tabHost);
         }
         if (GradleVariantConfig.isAVFragmentActive()) {
-            setTab(context.getResources().getString(R.string.tab_tag_av), R.id.tab_av_layout,
-                    context.getResources().getDrawable(R.drawable.statics));
+            setTab(getResources().getString(R.string.tab_tag_av), R.id.tab_av_layout,
+                    getResources().getDrawable(R.drawable.statics));
         }
         if(GradleVariantConfig.isMonitoringFragmentActive()) {
-            setTab(context.getResources().getString(R.string.tab_tag_monitor),
+            setTab(getResources().getString(R.string.tab_tag_monitor),
                     R.id.tab_monitor_layout,
-                    context.getResources().getDrawable(R.drawable.tab_monitor));
+                    getResources().getDrawable(R.drawable.tab_monitor));
+        }
+        if(GradleVariantConfig.isStockControlActive()){
+            mDashboardActivityStrategy.setStockControlTab(tabHost);
         }
     }
 
@@ -252,15 +254,20 @@ public class DashboardActivity extends BaseActivity {
     }
 
     public void restoreAssess() {
+        if (surveyFragment == null) {
+            surveyFragment = new SurveyFragment();
+        }
         replaceFragment(mDashboardActivityStrategy.getSurveyContainer(), surveyFragment);
     }
 
     /**
      * This method initializes the reviewFragment
+     * @param fromReviewList
      */
-    public void initReview() {
-        surveyFragment.mReviewMode = true;
-
+    public void initReview(final boolean fromReviewList) {
+        if (surveyFragment != null) {
+            surveyFragment.mReviewMode = true;
+        }
         if (reviewFragment == null) {
             reviewFragment = new ReviewFragment();
         }
@@ -269,7 +276,7 @@ public class DashboardActivity extends BaseActivity {
         reviewFragment.setOnEndReviewListener(new ReviewFragment.OnEndReviewListener() {
             @Override
             public void onEndReview() {
-                exitReview();
+                exitReview(fromReviewList);
             }
         });
     }
@@ -301,13 +308,20 @@ public class DashboardActivity extends BaseActivity {
     public void initSurvey() {
         isBackPressed = false;
         tabHost.getTabWidget().setVisibility(View.GONE);
-        if (surveyFragment == null) {
-            surveyFragment = new SurveyFragment();
+        if (Session.getMalariaSurveyDB().isInProgress()
+                || !BuildConfig.openReviewCompletedSurveys) {
+            if (surveyFragment == null) {
+                surveyFragment = new SurveyFragment();
+            }
+            surveyFragment.reloadHeader(dashboardActivity);
+            replaceFragment(mDashboardActivityStrategy.getSurveyContainer(), surveyFragment);
+            android.support.v7.app.ActionBar actionBar = this.getSupportActionBar();
+            LayoutUtils.setSurveyActionBar(actionBar);
+        } else {
+            findViewById(R.id.common_header).setVisibility(View.GONE);
+            initReview(true);
         }
-        surveyFragment.reloadHeader(dashboardActivity);
-        replaceFragment(mDashboardActivityStrategy.getSurveyContainer(), surveyFragment);
-        android.support.v7.app.ActionBar actionBar = this.getSupportActionBar();
-        LayoutUtils.setSurveyActionBar(actionBar);
+
     }
 
     /**
@@ -432,6 +446,8 @@ public class DashboardActivity extends BaseActivity {
             onSurveyBackPressed();
         } else if (isNewHistoricReceiptBalanceFragmentActive()) {
             closeReceiptBalanceFragment();
+        } else if (isStockTableFragmentActive()) {
+            closeStockTableFragment();
         } else {
             if (!mDashboardActivityStrategy.onWebViewBackPressed(tabHost)) {
                 confirmExitApp();
@@ -487,7 +503,7 @@ public class DashboardActivity extends BaseActivity {
      */
     public void showReviewFragment() {
         isLoadingReview = true;
-        initReview();
+        initReview(false);
     }
 
 
@@ -528,6 +544,11 @@ public class DashboardActivity extends BaseActivity {
         tabHost.getTabWidget().setVisibility(View.VISIBLE);
     }
 
+    public void closeStockTableFragment(){
+        mDashboardActivityStrategy.initStockControlFragment();
+        tabHost.getTabWidget().setVisibility(View.VISIBLE);
+    }
+
 
     /**
      * This method closes the Feedback Fragment and loads the Improve fragment
@@ -555,9 +576,10 @@ public class DashboardActivity extends BaseActivity {
 
     /**
      * Called when the user clicks the exit Review button
+     * @param fromReviewList
      */
-    public void exitReview() {
-       mDashboardActivityStrategy.exitReview();
+    public void exitReview(boolean fromReviewList) {
+        mDashboardActivityStrategy.exitReview(fromReviewList);
     }
 
     public void sendSurvey(View view) {
@@ -595,8 +617,18 @@ public class DashboardActivity extends BaseActivity {
 
     /**
      * Show a final dialog to announce the survey is over
+     * @param fromSurveysList
      */
-    public void reviewShowDone() {
+    public void reviewShowDone(boolean fromSurveysList) {
+        if (!fromSurveysList) {
+            showSendSurveyDialog();
+        } else {
+            DynamicTabAdapter.isClicked = false;
+            exitReviewScreen();
+        }
+    }
+
+    private void showSendSurveyDialog() {
         AlertDialog.Builder msgConfirmation = new AlertDialog.Builder(this)
                 .setTitle(R.string.survey_completed)
                 .setMessage(R.string.survey_completed_text)
@@ -618,6 +650,14 @@ public class DashboardActivity extends BaseActivity {
         msgConfirmation.create().show();
     }
 
+    private void exitReviewScreen() {
+        if (!DynamicTabAdapter.isClicked) {
+            DynamicTabAdapter.isClicked = true;
+            closeSurveyFragment();
+            DynamicTabAdapter.isClicked = false;
+        }
+    }
+
     /**
      * Checks if a survey fragment is active
      */
@@ -634,6 +674,10 @@ public class DashboardActivity extends BaseActivity {
 
     private boolean isNewHistoricReceiptBalanceFragmentActive() {
         return mDashboardActivityStrategy.isHistoricNewReceiptBalanceFragment(this);
+    }
+
+    private boolean isStockTableFragmentActive() {
+        return mDashboardActivityStrategy.isStockTableFragmentActive(this);
     }
 
     private boolean isFragmentActive(Class fragmentClass, int layout) {
@@ -707,7 +751,6 @@ public class DashboardActivity extends BaseActivity {
         mDashboardActivityStrategy.onCreate();
         dashboardActivity = this;
         setContentView(R.layout.tab_dashboard);
-        SurveyDB.removeInProgress();
         if (savedInstanceState == null) {
             initImprove();
             if(GradleVariantConfig.isMonitoringFragmentActive()) {
@@ -720,6 +763,9 @@ public class DashboardActivity extends BaseActivity {
             }
             if (GradleVariantConfig.isAVFragmentActive()) {
                 initAV();
+            }
+            if(GradleVariantConfig.isStockControlActive()){
+                initStockControlFragment();
             }
             initAssess();
         }
@@ -735,6 +781,16 @@ public class DashboardActivity extends BaseActivity {
                 ex.printStackTrace();
             }
         }
+    }
+
+    private void initStockControlFragment() {
+        mDashboardActivityStrategy.initStockControlFragment();
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        mDashboardActivityStrategy.onStart();
     }
 
     /**
