@@ -13,10 +13,8 @@ import org.eyeseetea.malariacare.SettingsActivity;
 import org.eyeseetea.malariacare.data.database.datasources.ProgramLocalDataSource;
 import org.eyeseetea.malariacare.data.database.model.OrgUnitDB;
 import org.eyeseetea.malariacare.data.database.model.ProgramDB;
-import org.eyeseetea.malariacare.data.database.model.QuestionDB;
 import org.eyeseetea.malariacare.data.database.model.SurveyDB;
 import org.eyeseetea.malariacare.data.database.model.TabDB;
-import org.eyeseetea.malariacare.data.database.model.ValueDB;
 import org.eyeseetea.malariacare.data.database.utils.PreferencesState;
 import org.eyeseetea.malariacare.data.database.utils.Session;
 import org.eyeseetea.malariacare.domain.boundary.executors.IAsyncExecutor;
@@ -24,8 +22,8 @@ import org.eyeseetea.malariacare.domain.boundary.executors.IMainExecutor;
 import org.eyeseetea.malariacare.domain.boundary.repositories.IProgramRepository;
 import org.eyeseetea.malariacare.domain.entity.Program;
 import org.eyeseetea.malariacare.domain.exception.LoadingNavigationControllerException;
-import org.eyeseetea.malariacare.domain.usecase.GetUserProgramUIDUseCase;
 import org.eyeseetea.malariacare.domain.usecase.HasToGenerateStockProgramUseCase;
+import org.eyeseetea.malariacare.domain.usecase.strategies.GetUserProgramUseCase;
 import org.eyeseetea.malariacare.fragments.AddBalanceReceiptFragment;
 import org.eyeseetea.malariacare.fragments.StockSummaryFragment;
 import org.eyeseetea.malariacare.fragments.StockSurveysFragment;
@@ -125,7 +123,7 @@ public class DashboardActivityStrategy extends ADashboardActivityStrategy {
         HasToGenerateStockProgramUseCase hasToGenerateStockProgramUseCase =
                 new HasToGenerateStockProgramUseCase(mainExecutor, asyncExecutor,
                         programRepository);
-        hasToGenerateStockProgramUseCase.execute(malariaSurvey.getProgramDB().getUid(),
+        hasToGenerateStockProgramUseCase.execute(malariaSurvey.getProgramDB().getName(),
                 new HasToGenerateStockProgramUseCase.Callback() {
                     @Override
                     public void hasToCreateStock(boolean create) {
@@ -284,15 +282,15 @@ public class DashboardActivityStrategy extends ADashboardActivityStrategy {
         IMainExecutor mainExecutor = new UIThreadExecutor();
         IAsyncExecutor asyncExecutor = new AsyncExecutor();
         IProgramRepository programRepository = new ProgramLocalDataSource();
-        GetUserProgramUIDUseCase getUserProgramUIDUseCase = new GetUserProgramUIDUseCase(
+        GetUserProgramUseCase getUserProgramUIDUseCase = new GetUserProgramUseCase(
                 programRepository, mainExecutor, asyncExecutor);
         final HasToGenerateStockProgramUseCase hasToGenerateStockProgramUseCase =
                 new HasToGenerateStockProgramUseCase(mainExecutor, asyncExecutor,
                         programRepository);
-        getUserProgramUIDUseCase.execute(new GetUserProgramUIDUseCase.Callback() {
+        getUserProgramUIDUseCase.execute(new GetUserProgramUseCase.Callback() {
             @Override
-            public void onSuccess(String uid) {
-                hasToGenerateStockProgramUseCase.execute(uid,
+            public void onSuccess(Program program) {
+                hasToGenerateStockProgramUseCase.execute(program.getCode(),
                         new HasToGenerateStockProgramUseCase.Callback() {
                             @Override
                             public void hasToCreateStock(boolean create) {
@@ -343,15 +341,15 @@ public class DashboardActivityStrategy extends ADashboardActivityStrategy {
         IMainExecutor mainExecutor = new UIThreadExecutor();
         IAsyncExecutor asyncExecutor = new AsyncExecutor();
         IProgramRepository programRepository = new ProgramLocalDataSource();
-        GetUserProgramUIDUseCase getUserProgramUIDUseCase = new GetUserProgramUIDUseCase(
+        GetUserProgramUseCase getUserProgramUseCase = new GetUserProgramUseCase(
                 programRepository, mainExecutor, asyncExecutor);
         final HasToGenerateStockProgramUseCase hasToGenerateStockProgramUseCase =
                 new HasToGenerateStockProgramUseCase(mainExecutor, asyncExecutor,
                         programRepository);
-        getUserProgramUIDUseCase.execute(new GetUserProgramUIDUseCase.Callback() {
+        getUserProgramUseCase.execute(new GetUserProgramUseCase.Callback() {
             @Override
-            public void onSuccess(String uid) {
-                hasToGenerateStockProgramUseCase.execute(uid,
+            public void onSuccess(Program program) {
+                hasToGenerateStockProgramUseCase.execute(program.getCode(),
                         new HasToGenerateStockProgramUseCase.Callback() {
                             @Override
                             public void hasToCreateStock(boolean create) {
@@ -394,9 +392,37 @@ public class DashboardActivityStrategy extends ADashboardActivityStrategy {
     @Override
     public void onStart() {
         if (Session.hasSurveyToComplete()) {
+            openUncompletedSurvey();
             Session.setHasSurveyToComplete(false);
         } else {
             SurveyDB.removeInProgress();
         }
+    }
+
+    private void openUncompletedSurvey() {
+        IProgramRepository programRepository = new ProgramLocalDataSource();
+        Program userProgram = programRepository.getUserProgram();
+        ProgramDB program = ProgramDB.findByName(userProgram.getCode());
+
+        TabDB userProgramTab = TabDB.findTabByProgram(program.getId_program()).get(0);
+        try {
+            NavigationBuilder.getInstance().buildController(userProgramTab);
+        } catch (LoadingNavigationControllerException e) {
+            e.printStackTrace();
+        }
+        NavigationBuilder.getInstance().setLoadBuildControllerListener(
+                new NavigationBuilder.LoadBuildControllerListener() {
+                    @Override
+                    public void onLoadFinished() {
+                        List<SurveyDB> uncompletedSurveys = SurveyDB.getAllUncompletedSurveys();
+                        if (!uncompletedSurveys.isEmpty()) {
+                            SurveyDB survey;
+                            survey = uncompletedSurveys.get(uncompletedSurveys.size() - 1);
+                            survey.getValuesFromDB();
+                            Session.setMalariaSurveyDB(survey);
+                            mDashboardActivity.initSurvey();
+                        }
+                    }
+                });
     }
 }
