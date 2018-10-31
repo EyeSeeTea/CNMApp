@@ -35,6 +35,8 @@ import com.raizlabs.android.dbflow.config.FlowLog;
 import com.raizlabs.android.dbflow.config.FlowManager;
 
 import org.eyeseetea.malariacare.data.database.utils.PreferencesState;
+import org.eyeseetea.malariacare.strategies.AEyeSeeTeaApplicationStrategy;
+import org.eyeseetea.malariacare.strategies.EyeSeeTeaApplicationStrategy;
 import org.eyeseetea.malariacare.utils.Permissions;
 
 import io.fabric.sdk.android.Fabric;
@@ -55,10 +57,14 @@ public class EyeSeeTeaApplication extends Application {
 
     private static EyeSeeTeaApplication mInstance;
 
+    private AEyeSeeTeaApplicationStrategy mEyeSeeTeaApplicationStrategy;
+
     @Override
     public void onCreate() {
         super.onCreate();
         Log.d(TAG, "onCreate");
+        mEyeSeeTeaApplicationStrategy = new EyeSeeTeaApplicationStrategy(this);
+        mEyeSeeTeaApplicationStrategy.onCreate();
         mInstance = this;
 
         //Apply for Release build
@@ -80,6 +86,7 @@ public class EyeSeeTeaApplication extends Application {
 
     @Override
     public void onTerminate() {
+        Log.d(TAG, "AndroidLifeCycle: onTerminate");
         super.onTerminate();
         FlowManager.destroy();
     }

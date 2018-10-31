@@ -12,6 +12,8 @@ import android.widget.TextView;
 import org.eyeseetea.malariacare.DashboardActivity;
 import org.eyeseetea.malariacare.EyeSeeTeaApplication;
 import org.eyeseetea.malariacare.R;
+import org.eyeseetea.malariacare.SplashScreenActivity;
+import org.eyeseetea.malariacare.data.remote.SdkQueries;
 import org.eyeseetea.malariacare.domain.AutoconfigureException;
 import org.eyeseetea.malariacare.domain.exception.ApiCallException;
 import org.eyeseetea.malariacare.domain.exception.LoadingNavigationControllerException;
@@ -29,6 +31,11 @@ public class SplashActivityStrategy extends ASplashActivityStrategy {
     private PullFilters mPullFilters;
     private Activity mActivity;
     private boolean hasAutoconfigureError;
+
+    public interface Callback {
+        void onSuccess();
+    }
+
     public SplashActivityStrategy(Activity mActivity) {
         super(mActivity);
         this.mActivity = mActivity;
@@ -179,4 +186,16 @@ public class SplashActivityStrategy extends ASplashActivityStrategy {
             }
         }
     }
+
+    @Override
+    public void setContentView() {
+        activity.setContentView(R.layout.activity_splash);
+    }
+
+    @Override
+    public void init(SplashScreenActivity.Callback callback) {
+        SdkQueries.createDBIndexes();
+        super.init(callback);
+    }
+
 }

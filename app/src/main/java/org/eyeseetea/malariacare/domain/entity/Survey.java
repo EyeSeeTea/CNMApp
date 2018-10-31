@@ -1,5 +1,7 @@
 package org.eyeseetea.malariacare.domain.entity;
 
+import org.eyeseetea.malariacare.utils.Constants;
+
 import static org.eyeseetea.malariacare.domain.utils.RequiredChecker.required;
 
 import java.util.Date;
@@ -7,6 +9,7 @@ import java.util.List;
 
 public class Survey {
     private long id;
+    private String uid;
     private int status;
     private SurveyAnsweredRatio mSurveyAnsweredRatio;
     private Date mSurveyDate;
@@ -16,12 +19,13 @@ public class Survey {
     private int mType;
     private List<Question> questions;
 
-    public Survey(long id, int status,
+    public Survey(long id, String uid, int status,
             SurveyAnsweredRatio surveyAnsweredRatio, Date surveyDate,
             Program program, OrganisationUnit organisationUnit,
             UserAccount userAccount, int type,
             List<Question> questions) {
         this.id = id;
+        this.uid = uid;
         this.status = status;
         mSurveyAnsweredRatio = surveyAnsweredRatio;
         mSurveyDate = surveyDate;
@@ -39,6 +43,13 @@ public class Survey {
         mOrganisationUnit = organisationUnit;
         mUserAccount = userAccount;
         mType = required(type, "Type is required");
+    }
+
+    public static Survey createNewSurvey(Program program,
+                                                UserAccount userAccount) {
+        Survey survey = new Survey(program, null, userAccount, Constants.SURVEY_NO_TYPE);
+        survey.setStatus(Constants.SURVEY_IN_PROGRESS);
+        return survey;
     }
 
     public Survey(Date surveyDate) {
@@ -100,6 +111,7 @@ public class Survey {
     public String toString() {
         return "Survey{" +
                 "id=" + id +
+                ", uid=" + uid +
                 ", status=" + status +
                 ", mSurveyAnsweredRatio=" + mSurveyAnsweredRatio +
                 ", mSurveyDate=" + mSurveyDate +
@@ -133,6 +145,10 @@ public class Survey {
                 : survey.mSurveyDate != null) {
             return false;
         }
+        if (uid != null ? !uid.equals(survey.uid)
+                : survey.uid != null) {
+            return false;
+        }
         if (mProgram != null ? !mProgram.equals(survey.mProgram) : survey.mProgram != null) {
             return false;
         }
@@ -153,6 +169,7 @@ public class Survey {
         result = 31 * result + status;
         result = 31 * result + (mSurveyAnsweredRatio != null ? mSurveyAnsweredRatio.hashCode() : 0);
         result = 31 * result + (mSurveyDate != null ? mSurveyDate.hashCode() : 0);
+        result = 31 * result + (uid != null ? uid.hashCode() : 0);
         result = 31 * result + (mProgram != null ? mProgram.hashCode() : 0);
         result = 31 * result + (mOrganisationUnit != null ? mOrganisationUnit.hashCode() : 0);
         result = 31 * result + (mUserAccount != null ? mUserAccount.hashCode() : 0);
@@ -161,8 +178,13 @@ public class Survey {
         return result;
     }
 
+    public String getUId() {
+        return uid;
+    }
+
     public static final class Builder {
         private long id;
+        private String uid;
         private int status;
         private SurveyAnsweredRatio mSurveyAnsweredRatio;
         private Date mSurveyDate;
@@ -179,6 +201,11 @@ public class Survey {
             this.id = id;
             return this;
         }
+        public Builder uid(String uid) {
+            this.uid = uid;
+            return this;
+        }
+
 
         public Builder status(int status) {
             this.status = status;
@@ -222,6 +249,7 @@ public class Survey {
 
         public Survey build() {
             return new Survey(id,
+                    uid,
                     status,
                     mSurveyAnsweredRatio,
                     mSurveyDate,

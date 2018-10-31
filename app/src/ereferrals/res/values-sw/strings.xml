@@ -4,7 +4,6 @@
     <string name="system_defined">"mfumo defined"</string>
     <string name="common_option_method_none">"Hatumii"</string>
     <string name="common_option_method_other">"nyingine"</string>
-    <string name="login_pin">"siri"</string>
     <string name="advanced_options">"Chaguzi za Juu"</string>
     <string name="simple_options">"Chaguzi Rahisi"</string>
     <string name="error_web">errorpage_sw.html</string>
@@ -18,7 +17,6 @@
     <string name="unsent_data">"Fungua"</string>
     <string name="open_tab_title">"FUNGUA"</string>
     <string name="closed_tab_title">"KUFUNGWA"</string>
-    <string name="status_tab_title">"HALI"</string>
     <string name="malaria_case_based_reporting">"eReferrals"</string>
     <string name="volunteer_label">"IPC:"</string>
     <string name="fonts_customise">"Customize fonti"</string>
@@ -177,7 +175,7 @@
     <string name="drive_title">Kör rotmapp</string>
     <string name="config_version">Config Version: %s \n</string>
     <string name="av_progress">Hämtar innehåll ... vänligen vänta</string>
-    <string name="new_survey_disable">Toleo jipya la metadata halikuweza kufungwa kwa sababu kuna tafiti zinazojitokeza kutuma. Kipindi kipya cha utafiti kinazima</string>
+    <string name="new_survey_disable">Den nya undersökningsknappen är tillfälligt inaktiverad eftersom den nya versionen av metadata inte kunde installeras korrekt.</string>
 
 
     <!-- TERMS FROM POEDITOR -->
@@ -1015,4 +1013,17 @@ Ameahidi kuhudhuria"</string>
 <string name="upgrading_metadata">Kuboresha metadata</string>
 <string name="warning_message">"WARNING:: "</string>
 <string name="error_empty_question">"Weka shamba la lazima"</string>
+<string name="format_error">Json-formatfel</string>
+<string name="no_user_error">Ingen användare inloggad.</string>
+<string name="different_user_error">Användaren inloggad är annorlunda.</string>
+<string name="dynamic_error_month_age">"Ogiltig ålder i månader"</string>
+<string name="allow_media_download_3g">"Ruhusu kupakuliwa kwa vyombo vya habari juu ya 3g"</string>
+<string name="metadata_update">"Sasisha tarehe ya metadata: %s"</string>
+<string name="elements">"Elements"</string>
+<string name="activate_elements">"Aktivera element"</string>
+<string name="element_not_installed">"Element SDK är inte installerat!"</string>
+<string name="check_metadata_title">"Kontrollera metadatauppdateringar på mjuka inloggningar"</string>
+<string name="settings_title_program_url_config">"Programkonfigurationsadress"</string>
+<string name="settings_title_program_username_config">"Programkonfigurations användarnamn"</string>
+<string name="settings_title_program_password_config">"Programkonfigurationslösenord"</string>
 </resources>

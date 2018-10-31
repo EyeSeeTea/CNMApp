@@ -41,8 +41,7 @@ public class PhoneMultiquestionViewStrategy extends APhoneMultiquestionViewStrat
                         try {
                             Phone phone = new Phone(phoneText.getText().toString(), phoneFormat);
                             notifyAnswerChanged(phone.getValue());
-                            Validation.getInstance().removeInputError(phoneText);
-
+                            validateRegExp(phoneText, phone);
                         } catch (InvalidPhoneException e) {
                             Validation.getInstance().addinvalidInput(phoneText,
                                     mPhoneMultiQuestionView.getContext().getString(
@@ -60,6 +59,10 @@ public class PhoneMultiquestionViewStrategy extends APhoneMultiquestionViewStrat
 
                     }
                 });
+                //the validation need be forced after add the listener with async onSuccess method.
+                if(phoneText.getText()!=null) {
+                    phoneText.setText(phoneText.getText());
+                }
             }
 
             @Override

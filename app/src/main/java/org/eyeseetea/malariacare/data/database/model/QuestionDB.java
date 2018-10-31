@@ -153,6 +153,14 @@ public class QuestionDB extends BaseModel {
      * Reference to the associated mAnswerDB (loaded lazily)
      */
     AnswerDB mAnswerDB;
+
+    @Column
+    String validationRegExp;
+    @Column
+    String validationMessage;
+    @Column
+    String defaultValue;
+
     @Column
     Integer output;
 
@@ -575,7 +583,6 @@ public class QuestionDB extends BaseModel {
                 .where(QuestionDB_Table.uid_question.withTable(questionAlias)
                         .eq(questionUID)).querySingle();
     }
-
     /**
      * Method to get all mQuestionOptionDBs related by id
      */
@@ -797,6 +804,30 @@ public class QuestionDB extends BaseModel {
 
     public void setVisible(Integer visible) {
         this.visible = visible;
+    }
+
+    public String getValidationRegExp() {
+        return validationRegExp;
+    }
+
+    public void setValidationRegExp(String validationRegExp) {
+        this.validationRegExp = validationRegExp;
+    }
+
+    public String getValidationMessage() {
+        return validationMessage;
+    }
+
+    public void setValidationMessage(String validationMessage) {
+        this.validationMessage = validationMessage;
+    }
+
+    public String getDefaultValue() {
+        return defaultValue;
+    }
+
+    public void setDefaultValue(String defaultValue) {
+        this.defaultValue = defaultValue;
     }
 
     public AnswerDB getAnswerDB() {
@@ -1372,13 +1403,17 @@ public class QuestionDB extends BaseModel {
         }
     }
 
-    public void saveValuesText(String answer) {
+    public void saveValuesText(String answer, boolean isValueLoadedFromOtherApp) {
         ValueDB valueDB = getValueBySession();
-        if (valueDB != null && valueDB.getQuestionDB().hasQuestionThresholds()) {
+        if (valueDB != null && valueDB.getQuestionDB().hasQuestionThresholds()
+                && !isValueLoadedFromOtherApp) {
             valueDB.getQuestionDB().deleteThresholdValues(valueDB);
         }
         SurveyDB surveyDB = (SurveyFragmentStrategy.getSessionSurveyByQuestion(this));
         SurveyFragmentStrategy.saveValuesText(valueDB, answer, this, surveyDB);
+    }
+    public void saveValuesText(String answer) {
+        saveValuesText(answer, false);
     }
 
     private void deleteThresholdValues(ValueDB valueDB) {
@@ -1994,6 +2029,9 @@ public class QuestionDB extends BaseModel {
         result = 31 * result + (numerator_w != null ? numerator_w.hashCode() : 0);
         result = 31 * result + (denominator_w != null ? denominator_w.hashCode() : 0);
         result = 31 * result + (feedback != null ? feedback.hashCode() : 0);
+        result = 31 * result + (validationRegExp != null ? validationRegExp.hashCode() : 0);
+        result = 31 * result + (validationMessage != null ? validationMessage.hashCode() : 0);
+        result = 31 * result + (defaultValue != null ? defaultValue.hashCode() : 0);
         result = 31 * result + (id_header_fk != null ? id_header_fk.hashCode() : 0);
         result = 31 * result + (id_answer_fk != null ? id_answer_fk.hashCode() : 0);
         result = 31 * result + (output != null ? output.hashCode() : 0);
@@ -2026,9 +2064,12 @@ public class QuestionDB extends BaseModel {
                 ", output=" + output +
                 ", id_question_parent=" + id_question_parent +
                 ", id_composite_score=" + id_composite_score_fk +
+                ", validationRegExp=" + validationRegExp +
+                ", validationMessage=" + validationMessage +
                 ", total_questions=" + total_questions +
                 ", visible=" + visible +
                 ", path=" + path +
+                ", defaultValue=" + defaultValue +
                 '}';
     }
 
@@ -2066,6 +2107,14 @@ public class QuestionDB extends BaseModel {
         return mPropagationQuestionDB;
     }
 
+    public List<OptionDB> getOptions() {
+        List<OptionDB> optionDBS = new Select().from(OptionDB.class)
+                    .where(OptionDB_Table.id_answer_fk.eq(getAnswerDB().getId_answer()))
+                    .orderBy(OptionDB_Table.name, true)
+                    .queryList();
+        return optionDBS;
+    }
+
     private List<QuestionDB> getPropagationThresholdsQuestionDB() {
         return new Select().from(QuestionDB.class).as(questionName)
                 //QuestionDB + QuestioRelation
@@ -2093,6 +2142,10 @@ public class QuestionDB extends BaseModel {
                 .from(QuestionDB.class)
                 .count();
         return count < 1;
+    }
+
+    public ValueDB getValueByQuestion(SurveyDB surveyDB, QuestionDB screenQuestionDB) {
+        return ValueDB.findValue(screenQuestionDB.getId_question(), surveyDB);
     }
 
     public static class QuestionOrderComparator implements Comparator {

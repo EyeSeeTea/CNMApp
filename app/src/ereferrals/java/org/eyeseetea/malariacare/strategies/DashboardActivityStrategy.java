@@ -5,9 +5,11 @@ import android.app.Dialog;
 import android.app.FragmentTransaction;
 import android.content.BroadcastReceiver;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.os.Bundle;
+import android.support.annotation.NonNull;
 import android.support.annotation.StringRes;
 import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
@@ -29,7 +31,7 @@ import org.eyeseetea.malariacare.R;
 import org.eyeseetea.malariacare.data.database.CredentialsLocalDataSource;
 import org.eyeseetea.malariacare.data.database.datasources.ConfigurationLocalDataSource;
 import org.eyeseetea.malariacare.data.database.datasources.LanguagesLocalDataSource;
-import org.eyeseetea.malariacare.data.database.datasources.ProgramLocalDataSource;
+import org.eyeseetea.malariacare.data.database.datasources.SettingsDataSource;
 import org.eyeseetea.malariacare.data.database.datasources.UserAccountDataSource;
 import org.eyeseetea.malariacare.data.database.model.OptionDB;
 import org.eyeseetea.malariacare.data.database.model.ProgramDB;
@@ -41,8 +43,11 @@ import org.eyeseetea.malariacare.data.database.utils.Session;
 import org.eyeseetea.malariacare.data.io.FileDownloader;
 import org.eyeseetea.malariacare.data.io.GooglePlayAppNotAvailableException;
 import org.eyeseetea.malariacare.data.net.ConnectivityManager;
+import org.eyeseetea.malariacare.data.remote.ElementController;
 import org.eyeseetea.malariacare.data.repositories.MediaRepository;
+import org.eyeseetea.malariacare.data.repositories.ProgramRepository;
 import org.eyeseetea.malariacare.domain.boundary.IConnectivityManager;
+import org.eyeseetea.malariacare.domain.boundary.IExternalVoucherRegistry;
 import org.eyeseetea.malariacare.domain.boundary.executors.IAsyncExecutor;
 import org.eyeseetea.malariacare.domain.boundary.executors.IMainExecutor;
 import org.eyeseetea.malariacare.domain.boundary.io.IFileDownloader;
@@ -50,17 +55,23 @@ import org.eyeseetea.malariacare.domain.boundary.repositories.IConfigurationRepo
 import org.eyeseetea.malariacare.domain.boundary.repositories.ICredentialsRepository;
 import org.eyeseetea.malariacare.domain.boundary.repositories.ILanguageRepository;
 import org.eyeseetea.malariacare.domain.boundary.repositories.IProgramRepository;
+import org.eyeseetea.malariacare.domain.boundary.repositories.ISettingsRepository;
 import org.eyeseetea.malariacare.domain.boundary.repositories.IUserRepository;
 import org.eyeseetea.malariacare.domain.entity.Credentials;
-import org.eyeseetea.malariacare.domain.entity.UIDGenerator;
+import org.eyeseetea.malariacare.domain.entity.Settings;
 import org.eyeseetea.malariacare.domain.entity.UserAccount;
 import org.eyeseetea.malariacare.domain.exception.LoadingNavigationControllerException;
 import org.eyeseetea.malariacare.domain.exception.NetworkException;
 import org.eyeseetea.malariacare.domain.exception.NoFilesException;
+import org.eyeseetea.malariacare.domain.identifiers.CodeGenerator;
+import org.eyeseetea.malariacare.domain.identifiers.UIDGenerator;
+import org.eyeseetea.malariacare.domain.usecase.DownloadMediaUseCase;
+import org.eyeseetea.malariacare.domain.usecase.GetSettingsUseCase;
 import org.eyeseetea.malariacare.domain.usecase.GetUrlForWebViewsUseCase;
 import org.eyeseetea.malariacare.domain.usecase.GetUserUserAccountUseCase;
+import org.eyeseetea.malariacare.domain.usecase.SendToExternalAppPaperVoucherUseCase;
+import org.eyeseetea.malariacare.domain.usecase.TreatExternalAppResultUseCase;
 import org.eyeseetea.malariacare.domain.usecase.VerifyLanguagesAndConfigFilesWereDownloadedUseCase;
-import org.eyeseetea.malariacare.domain.usecase.pull.DownloadMediaUseCase;
 import org.eyeseetea.malariacare.fragments.AVFragment;
 import org.eyeseetea.malariacare.fragments.DashboardUnsentFragment;
 import org.eyeseetea.malariacare.fragments.WebViewFragment;
@@ -77,6 +88,9 @@ import java.util.Date;
 import java.util.List;
 
 public class DashboardActivityStrategy extends ADashboardActivityStrategy {
+
+    final private String TAG = "DashboardActivityS";
+
     public static final int REQUEST_GOOGLE_PLAY_SERVICES = 102;
 
     static final int REQUEST_AUTHORIZATION = 101;
@@ -96,7 +110,7 @@ public class DashboardActivityStrategy extends ADashboardActivityStrategy {
 
         ICredentialsRepository iCredentialsRepository = new CredentialsLocalDataSource();
 
-        Credentials credentials = iCredentialsRepository.getOrganisationCredentials();
+        Credentials credentials = iCredentialsRepository.getLastValidCredentials();
         if (credentials != null && !credentials.isDemoCredentials()) {
             IConfigurationRepository configurationRepository = new ConfigurationLocalDataSource();
             ILanguageRepository languageRepository = new LanguagesLocalDataSource();
@@ -138,8 +152,8 @@ public class DashboardActivityStrategy extends ADashboardActivityStrategy {
 
         IAsyncExecutor asyncExecutor = new AsyncExecutor();
         IMainExecutor mainExecutor = new UIThreadExecutor();
-        IConnectivityManager mConnectivity = new ConnectivityManager();
-        IProgramRepository programRepository = new ProgramLocalDataSource();
+        IConnectivityManager mConnectivity = new ConnectivityManager(mDashboardActivity);
+        IProgramRepository programRepository = new ProgramRepository();
         String path =
                 PreferencesState.getInstance().getContext().getFilesDir().getAbsolutePath() + "/"
                         + Constants.MEDIA_FOLDER;
@@ -148,9 +162,10 @@ public class DashboardActivityStrategy extends ADashboardActivityStrategy {
                 new File(path),
                 mDashboardActivity.getApplicationContext().getResources().openRawResource(
                         R.raw.driveserviceprivatekey));
+        ISettingsRepository settingsRepository = new SettingsDataSource(mDashboardActivity);
         mDownloadMediaUseCase = new DownloadMediaUseCase(asyncExecutor, mainExecutor,
                 fileDownloader,
-                mConnectivity, programRepository, mediaRepository);
+                mConnectivity, programRepository, mediaRepository,settingsRepository);
     }
 
     private void showToast(@StringRes int text) {
@@ -251,7 +266,8 @@ public class DashboardActivityStrategy extends ADashboardActivityStrategy {
         malariaSurvey.updateSurveyStatus();
         if (malariaSurvey.isCompleted() && malariaSurvey.getEventUid() == null) {
             UIDGenerator uidGenerator = new UIDGenerator();
-            malariaSurvey.setEventUid(String.valueOf(uidGenerator.generateUID()));
+            malariaSurvey.setEventUid(CodeGenerator.generateCode());
+            malariaSurvey.setVoucherUid(String.valueOf(uidGenerator.generateUID()));
             malariaSurvey.setEventDate(new Date(uidGenerator.getTimeGeneratedUID()));
             malariaSurvey.save();
             showEndSurveyMessage(malariaSurvey);
@@ -321,7 +337,9 @@ public class DashboardActivityStrategy extends ADashboardActivityStrategy {
 
     @Override
     public void reloadFirstFragmentHeader() {
-        mDashboardUnsentFragment.reloadHeader(mDashboardActivity);
+        if(!DashboardActivity.dashboardActivity.isSurveyFragmentActive()) {
+            mDashboardUnsentFragment.reloadHeader(mDashboardActivity);
+        }
     }
 
     @Override
@@ -497,19 +515,38 @@ public class DashboardActivityStrategy extends ADashboardActivityStrategy {
      * @param data        Intent (containing result data) returned by incoming
      *                    activity result.
      */
+    @Override
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
         switch (requestCode) {
             case REQUEST_GOOGLE_PLAY_SERVICES:
-                if (resultCode != Activity.RESULT_OK) {
+                if (resultCode == Activity.RESULT_OK) {
+                    downloadMedia();
+                } else {
                     Toast.makeText(mDashboardActivity.getApplicationContext(),
                             mDashboardActivity.getApplicationContext().getString(
                                     R.string.google_play_required),
                             Toast.LENGTH_LONG);
-                } else {
-                    downloadMedia();
                 }
                 break;
         }
+
+        externalVoucherSenderResultTreatment(requestCode, resultCode, data);
+    }
+
+    private void externalVoucherSenderResultTreatment(int requestCode, int resultCode, Intent data) {
+        IExternalVoucherRegistry elementController = new ElementController(DashboardActivity.dashboardActivity);
+        TreatExternalAppResultUseCase treatExternalAppResultUseCase = new TreatExternalAppResultUseCase(elementController, new IExternalVoucherRegistry.Callback() {
+            @Override
+            public void onSuccess() {
+                Log.d(TAG, "User created");
+            }
+
+            @Override
+            public void onError() {
+                Log.d(TAG, "User is not created");
+            }
+        });
+        treatExternalAppResultUseCase.execute(requestCode, resultCode, data);
     }
 
     @Override
@@ -524,10 +561,44 @@ public class DashboardActivityStrategy extends ADashboardActivityStrategy {
 
     public void showEndSurveyMessage(SurveyDB surveyDB) {
         if (surveyDB != null && !noIssueVoucher(surveyDB) && !hasPhone(surveyDB)) {
-            mDashboardActivity.showException("", String.format(
-                    mDashboardActivity.getResources().getString(R.string.give_voucher),
-                    surveyDB.getEventUid()));
+            final String voucherUId = surveyDB.getVoucherUid();
+
+            GetSettingsUseCase getSettingsUseCase = new GetSettingsUseCase(new UIThreadExecutor(), new AsyncExecutor(),
+                    new SettingsDataSource(mDashboardActivity.getBaseContext()));
+            getSettingsUseCase.execute(new GetSettingsUseCase.Callback() {
+                @Override
+                public void onSuccess(Settings setting) {
+                    DialogInterface.OnClickListener onClickListener = null;
+                    if(setting.isElementActive()){
+                        onClickListener = createOnClickListenerToSendVoucherToExternalApp(voucherUId, mDashboardActivity);
+                    }
+
+                    mDashboardActivity.showException(mDashboardActivity, "", String.format(
+                            mDashboardActivity.getResources().getString(R.string.give_voucher),
+                            voucherUId), onClickListener);
+                }
+            });
         }
+    }
+
+    @NonNull
+    private DialogInterface.OnClickListener createOnClickListenerToSendVoucherToExternalApp(final String voucherUId, final Context context) {
+        return new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialogInterface, int i) {
+                IExternalVoucherRegistry elementController = new ElementController(context);
+                AsyncExecutor mAsyncExecutor = new AsyncExecutor();
+                UIThreadExecutor mMainExecutor = new UIThreadExecutor();
+                SendToExternalAppPaperVoucherUseCase elementSentVoucherUseCase = new SendToExternalAppPaperVoucherUseCase(mMainExecutor, mAsyncExecutor,
+                        elementController, new IExternalVoucherRegistry.SenderCallback() {
+                    @Override
+                    public void onNotInstalledApp() {
+                        Toast.makeText(context, context.getString(R.string.element_not_installed), Toast.LENGTH_LONG).show();
+                    }
+                });
+                elementSentVoucherUseCase.execute(voucherUId);
+            }
+        };
     }
 
     private boolean noIssueVoucher(SurveyDB survey) {
@@ -615,8 +686,6 @@ public class DashboardActivityStrategy extends ADashboardActivityStrategy {
         if (Session.hasSurveyToComplete()) {
             openUncompletedSurvey();
             Session.setHasSurveyToComplete(false);
-        } else {
-            SurveyDB.removeInProgress();
         }
     }
 }

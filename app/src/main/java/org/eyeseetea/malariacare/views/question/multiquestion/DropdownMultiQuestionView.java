@@ -16,6 +16,7 @@ import org.eyeseetea.malariacare.domain.entity.Validation;
 import org.eyeseetea.malariacare.layout.adapters.general.OptionArrayAdapter;
 import org.eyeseetea.malariacare.layout.utils.LayoutUtils;
 import org.eyeseetea.malariacare.views.question.AOptionQuestionView;
+import org.eyeseetea.malariacare.views.question.IExtraValidation;
 import org.eyeseetea.malariacare.views.question.IImageQuestionView;
 import org.eyeseetea.malariacare.views.question.IMultiQuestionView;
 import org.eyeseetea.malariacare.views.question.IQuestionView;
@@ -29,7 +30,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class DropdownMultiQuestionView extends AOptionQuestionView implements IQuestionView,
-        IMultiQuestionView, IImageQuestionView {
+        IMultiQuestionView, IImageQuestionView, IExtraValidation {
     CustomTextView header;
     Spinner spinnerOptions;
     ImageView imageView;
@@ -53,6 +54,13 @@ public class DropdownMultiQuestionView extends AOptionQuestionView implements IQ
 
     public void setQuestionDB(QuestionDB questionDB) {
         this.mQuestionDB = questionDB;
+    }
+
+    @Override
+    public void checkLoadedErrors() {
+        if(!question.isCompulsory()){
+            Validation.getInstance().removeInputError(header);
+        }
     }
 
     @Override
@@ -93,6 +101,22 @@ public class DropdownMultiQuestionView extends AOptionQuestionView implements IQ
                 break;
             }
         }
+
+        validateAnswer();
+    }
+
+    private void validateAnswer() {
+        if (BuildConfig.validationInline) {
+            if (!question.isCompulsory() || spinnerOptions.getSelectedItemPosition() > 0) {
+                if(validateQuestionRegExp(header)) {
+                    Validation.getInstance().removeInputError(header);
+                    header.setError(null);
+                }
+            } else {
+                Validation.getInstance().addinvalidInput(header, getContext().getString(
+                        R.string.error_empty_question));
+            }
+        }
     }
 
     @Override
@@ -119,21 +143,11 @@ public class DropdownMultiQuestionView extends AOptionQuestionView implements IQ
             public void onItemSelected(AdapterView<?> parent, View v, int position, long id) {
                 OptionDB optionDB = (OptionDB) parent.getItemAtPosition(position);
                 if (!optionSetFromSavedValue) {
-                    if (position > 0) {
                         notifyAnswerChanged(optionDB);
-                    }
                 } else {
                     optionSetFromSavedValue = false;
                 }
-                if (BuildConfig.validationInline) {
-                    if (position > 0) {
-                        Validation.getInstance().removeInputError(header);
-                        header.setError(null);
-                    } else {
-                        Validation.getInstance().addinvalidInput(header, getContext().getString(
-                                R.string.error_empty_question));
-                    }
-                }
+                validateAnswer();
             }
 
             @Override
@@ -155,10 +169,6 @@ public class DropdownMultiQuestionView extends AOptionQuestionView implements IQ
             Validation.getInstance().addinvalidInput(header,
                     getResources().getString(R.string.error_empty_question));
         }
-    }
-
-    public Spinner getSpinnerOptions() {
-        return spinnerOptions;
     }
 
     @Override
